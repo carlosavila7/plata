@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    environment:
+      DATABASE_URL: "file:/data/gonzalo-plata.db"
+      NODE_ENV: development
+      ACCESS_TOKEN_SECRET: dev-access-secret-change-me
+      ACCESS_TOKEN_TTL: 15m
+      REFRESH_TOKEN_TTL_DAYS: 7
+    volumes:
+      - ./api/src:/app/src
+      - ./api/prisma:/app/prisma
+      - sqlite-data:/data
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_URL: /api
+      API_PROXY_TARGET: http://api:3000
+    volumes:
+      - ./app/src:/app/src
+      - ./app/public:/app/public
+      - ./app/index.html:/app/index.html
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://app:5173
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  sqlite-data:
+    driver: local

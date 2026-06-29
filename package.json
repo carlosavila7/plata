@@ -1,0 +1,14 @@
+{
+  "name": "gonzalo-plata",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix api\" \"npm run dev --prefix app\"",
+    "build": "npm run build --prefix app",
+    "seed": "npm run db:seed --prefix api",
+    "migrate-data": "node scripts/migrate.js --source ./finance --api http://localhost:3000"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

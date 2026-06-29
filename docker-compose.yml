@@ -1,0 +1,43 @@
+services:
+  api:
+    build:
+      context: ./api
+    environment:
+      DATABASE_URL: "file:/data/gonzalo-plata.db"
+      NODE_ENV: production
+      PWA_ORIGIN: ${TUNNEL_URL:-http://localhost}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?set ACCESS_TOKEN_SECRET in the environment}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+    volumes:
+      - sqlite-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  app:
+    build:
+      context: ./app
+      args:
+        VITE_API_URL: /api
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://app:80
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  sqlite-data:
+    driver: local

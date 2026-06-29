@@ -1,0 +1,288 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// User — authentication identity. Ownership of records is a later iteration.
+// ---------------------------------------------------------------------------
+model User {
+  id           String    @id
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime
+  updatedAt    DateTime
+  deletedAt    DateTime?
+
+  refreshTokens RefreshToken[]
+
+  // Owned domain records (data ownership — every domain row belongs to one user).
+  accounts             Account[]
+  balances             Balance[]
+  expenses             Expense[]
+  income               Income[]
+  creditCards          CreditCard[]
+  creditCardStatements CreditCardStatement[]
+  investmentPositions  InvestmentPosition[]
+  investmentEvents     InvestmentEvent[]
+}
+
+// ---------------------------------------------------------------------------
+// RefreshToken — one row per issued 7-day refresh token. Stores a hash of the
+// token (never the raw value) to support rotation, logout, and revocation.
+// ---------------------------------------------------------------------------
+model RefreshToken {
+  id        String    @id
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime
+
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Account
+// ---------------------------------------------------------------------------
+model Account {
+  id          String    @id
+  userId      String
+  name        String
+  type        String    // checking | savings | voucher | wallet
+  institution String
+  notes       String?
+  createdAt   DateTime
+  updatedAt   DateTime
+  deletedAt   DateTime?
+
+  user                User      @relation(fields: [userId], references: [id])
+  balances            Balance[]
+  expenses            Expense[]
+  incomeTo            Income[]  @relation("IncomeTo")
+  incomeFrom          Income[]  @relation("IncomeFrom")
+  investmentPositions InvestmentPosition[]
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Balance (snapshot)
+// ---------------------------------------------------------------------------
+model Balance {
+  id          String    @id
+  userId      String
+  accountId   String
+  date        String    // YYYY-MM-DD
+  amountCents Int
+  createdAt   DateTime
+  updatedAt   DateTime
+  deletedAt   DateTime?
+
+  user        User      @relation(fields: [userId], references: [id])
+  account     Account   @relation(fields: [accountId], references: [id])
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Expense
+// ---------------------------------------------------------------------------
+model Expense {
+  id                    String    @id
+  userId                String
+  occurredAt            DateTime
+  category              String    // food | transport | vehicle | streaming | housing | personal | health | subscriptions | entertainment | education | other
+  subCategory           String
+  costCents             Int
+  accountId             String
+  paymentType           String    // debit | credit | pix | food_voucher | meal_voucher
+  creditCardStatementId String?
+  boughtAt              String?
+  city                  String?
+  description           String?
+  groupingTag           String?
+  isRecurrent           Boolean
+  person                String?
+  isDelivery            Boolean?
+  fuelDetails           String?   // JSON: { fullTank, odometerKm, pricePerLiterCents }
+  createdAt             DateTime
+  updatedAt             DateTime
+  deletedAt             DateTime?
+
+  user                  User                 @relation(fields: [userId], references: [id])
+  account               Account              @relation(fields: [accountId], references: [id])
+  creditCardStatement   CreditCardStatement? @relation(fields: [creditCardStatementId], references: [id])
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Income
+// ---------------------------------------------------------------------------
+model Income {
+  id            String    @id
+  userId        String
+  occurredAt    DateTime
+  reason        String    // salary | interest | refund | deposit | self | rental | other | investment_withdrawal | plr
+  amountCents   Int
+  toAccountId   String
+  fromAccountId String?
+  description   String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  deletedAt     DateTime?
+
+  user          User      @relation(fields: [userId], references: [id])
+  toAccount     Account   @relation("IncomeTo",   fields: [toAccountId],   references: [id])
+  fromAccount   Account?  @relation("IncomeFrom", fields: [fromAccountId], references: [id])
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// CreditCard
+// ---------------------------------------------------------------------------
+model CreditCard {
+  id         String    @id
+  userId     String
+  nickname   String
+  bank       String
+  network    String
+  closingDay Int       // day of month (1–31)
+  dueDay     Int       // day of month (1–31)
+  limitCents Int?
+  createdAt  DateTime
+  updatedAt  DateTime
+  deletedAt  DateTime?
+
+  user       User      @relation(fields: [userId], references: [id])
+  statements CreditCardStatement[]
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// CreditCardStatement
+// ---------------------------------------------------------------------------
+model CreditCardStatement {
+  id           String    @id
+  userId       String
+  creditCardId String?   // FK → CreditCard (nullable for partial-sync safety; app-enforced)
+  openDate     String    // YYYY-MM-DD
+  closeDate    String    // YYYY-MM-DD
+  dueDate      String    // YYYY-MM-DD
+  status       String    // open | closed | paid
+  totalCents   Int?
+  createdAt    DateTime
+  updatedAt    DateTime
+  deletedAt    DateTime?
+
+  user         User        @relation(fields: [userId], references: [id])
+  creditCard   CreditCard? @relation(fields: [creditCardId], references: [id])
+  expenses     Expense[]
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// InvestmentPosition
+// ---------------------------------------------------------------------------
+model InvestmentPosition {
+  id                  String    @id
+  userId              String
+  name                String
+  assetType           String    // stock | fund | fixed_income | crypto | other
+  accountId           String?   // source account — set when the position (first event) is created
+  quantity            Float
+  avgPriceCents       Int
+  currentPriceCents   Int?
+  lastPriceUpdatedAt  DateTime?
+  notes               String?
+  createdAt           DateTime
+  updatedAt           DateTime
+  deletedAt           DateTime?
+
+  user                User              @relation(fields: [userId], references: [id])
+  account             Account?          @relation(fields: [accountId], references: [id])
+  events              InvestmentEvent[]
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// ExpenseCategory
+// ---------------------------------------------------------------------------
+model ExpenseCategory {
+  id        String    @id
+  name      String
+  createdAt DateTime
+  updatedAt DateTime
+  deletedAt DateTime?
+
+  subcategories ExpenseSubcategory[]
+}
+
+// ---------------------------------------------------------------------------
+// ExpenseSubcategory
+// ---------------------------------------------------------------------------
+model ExpenseSubcategory {
+  id         String    @id
+  name       String
+  categoryId String
+  createdAt  DateTime
+  updatedAt  DateTime
+  deletedAt  DateTime?
+
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// PaymentType
+// ---------------------------------------------------------------------------
+model PaymentType {
+  id        String    @id
+  name      String
+  isVoucher Boolean
+  createdAt DateTime
+  updatedAt DateTime
+  deletedAt DateTime?
+}
+
+// ---------------------------------------------------------------------------
+// City
+// ---------------------------------------------------------------------------
+model City {
+  id        String    @id
+  name      String
+  createdAt DateTime
+  updatedAt DateTime
+  deletedAt DateTime?
+}
+
+// ---------------------------------------------------------------------------
+// InvestmentEvent
+// ---------------------------------------------------------------------------
+model InvestmentEvent {
+  id          String    @id
+  userId      String
+  positionId  String
+  type        String    // buy | sell
+  occurredAt  DateTime
+  quantity    Float
+  priceCents  Int
+  notes       String?
+  createdAt   DateTime
+  updatedAt   DateTime
+  deletedAt   DateTime?
+
+  user        User               @relation(fields: [userId], references: [id])
+  position    InvestmentPosition @relation(fields: [positionId], references: [id])
+
+  @@index([userId])
+}

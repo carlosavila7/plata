@@ -1,0 +1,56 @@
+# md files from obsidian vault
+/finance
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+
+# Environment files (keep .env.example committed)
+.env
+.env.*
+!.env.example
+
+# Prisma — local SQLite dev databases (migrations are tracked)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test / coverage output
+coverage/
+.nyc_output/
+
+# Caches
+.cache/
+.vite/
+.eslintcache
+
+# Editor / IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+*.local

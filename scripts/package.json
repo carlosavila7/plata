@@ -1,0 +1,13 @@
+{
+  "name": "gonzalo-plata-migrate",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "migrate": "node migrate.js"
+  },
+  "dependencies": {
+    "glob": "^11.0.0",
+    "gray-matter": "^4.0.3",
+    "yargs": "^17.7.2"
+  }
+}
