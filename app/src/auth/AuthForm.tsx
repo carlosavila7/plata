@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { bg, border, textPrimary, textSecondary, btnPrimary, inputStyle, labelStyle } from '../theme'
@@ -14,12 +14,22 @@ export function AuthForm({ mode }: Props) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Seconds remaining on a server-imposed login lockout (HTTP 429).
+  const [cooldown, setCooldown] = useState(0)
+
+  // Tick the cooldown down to zero, re-enabling the form when it elapses.
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const id = setInterval(() => setCooldown((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(id)
+  }, [cooldown])
 
   if (status === 'authenticated' || status === 'offline-authed') {
     return <Navigate to="/" replace />
   }
 
   const isLogin = mode === 'login'
+  const disabled = busy || cooldown > 0
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -30,8 +40,12 @@ export function AuthForm({ mode }: Props) {
       else await register(email, password)
       navigate('/', { replace: true })
     } catch (err) {
-      const detail = (err as { body?: { detail?: string }; message?: string })
+      const detail = (err as { status?: number; body?: { detail?: string; retryAfter?: number }; message?: string })
       setError(detail.body?.detail ?? detail.message ?? 'Something went wrong.')
+      if (detail.status === 429) {
+        const secs = detail.body?.retryAfter ?? Number(detail.body?.detail?.match(/(\d+)s/)?.[1]) || 0
+        if (secs > 0) setCooldown(secs)
+      }
     } finally {
       setBusy(false)
     }
@@ -72,8 +86,8 @@ export function AuthForm({ mode }: Props) {
 
           {error && <div style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</div>}
 
-          <button type="submit" disabled={busy} style={{ ...btnPrimary, opacity: busy ? 0.6 : 1, marginTop: 8 }}>
-            {busy ? '…' : isLogin ? 'Sign in' : 'Create account'}
+          <button type="submit" disabled={disabled} style={{ ...btnPrimary, opacity: disabled ? 0.6 : 1, marginTop: 8 }}>
+            {busy ? '…' : cooldown > 0 ? `Try again in ${cooldown}s` : isLogin ? 'Sign in' : 'Create account'}
           </button>
         </form>
 

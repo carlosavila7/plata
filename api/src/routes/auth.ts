@@ -4,6 +4,7 @@ import { newId, now } from '../lib/helpers.js'
 import { hashPassword, verifyPassword } from '../lib/auth.js'
 import { signAccessToken, generateRefreshToken, hashToken } from '../lib/jwt.js'
 import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE_NAME } from '../plugins/auth.js'
+import { throttleKey, retryAfterSeconds, recordFailure, recordSuccess } from '../lib/loginThrottle.js'
 
 const Credentials = z.object({
   email:    z.string().email(),
@@ -47,9 +48,23 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/auth/login', async (req, reply) => {
     const { email, password } = Credentials.parse(req.body)
+    const key = throttleKey(email, req.ip)
+
+    // Gate before the user lookup / argon2 verify: skip the work entirely while locked.
+    const retry = retryAfterSeconds(key)
+    if (retry > 0) {
+      return reply.status(429).header('Retry-After', String(retry)).send({
+        type: 'https://tools.ietf.org/html/rfc7807',
+        title: 'Too Many Requests',
+        status: 429,
+        detail: `Too many failed login attempts. Try again in ${retry}s.`,
+        retryAfter: retry,
+      })
+    }
 
     const user = await db().user.findUnique({ where: { email } })
     if (!user || user.deletedAt || !(await verifyPassword(user.passwordHash, password))) {
+      recordFailure(key)
       return reply.status(401).send({
         type: 'https://tools.ietf.org/html/rfc7807',
         title: 'Unauthorized',
@@ -58,6 +73,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
       })
     }
 
+    recordSuccess(key)
     const { accessToken, refreshToken } = await issueSession(user.id, user.email)
     setRefreshCookie(reply, refreshToken)
     return reply.send({ accessToken, user: { id: user.id, email: user.email } })
