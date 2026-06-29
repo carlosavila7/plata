@@ -7,7 +7,7 @@ import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 import { SelectPicker } from '../../components/SelectPicker'
 import { FieldRow, rowInput, chipGroupLabel } from '../../components/FieldRow'
-import { bg, surface, border, textPrimary, textSecondary, btnPrimary, btnSecondary, inactive } from '../../theme'
+import { bg, border, textPrimary, textSecondary, btnPrimary, btnSecondary, inactive } from '../../theme'
 
 const VOUCHER_ACCOUNT_TYPES = new Set(['voucher', 'food_voucher', 'meal_voucher'])
 

@@ -1,5 +1,5 @@
 import { openDB } from 'idb'
-import type { DBSchema, IDBPDatabase, IDBPTransaction } from 'idb'
+import type { DBSchema, IDBPDatabase, IDBPTransaction, StoreNames } from 'idb'
 
 interface SyncQueueItem {
   id: string
@@ -98,7 +98,7 @@ const SEED_PAYMENT_TYPES = [
   { id: 'pt-meal-voucher', name: 'meal_voucher', isVoucher: true },
 ]
 
-type UpgradeTx = IDBPTransaction<FinanceDB, ArrayLike<string>, 'versionchange'>
+type UpgradeTx = IDBPTransaction<FinanceDB, ArrayLike<StoreNames<FinanceDB>>, 'versionchange'>
 
 async function seedOptionEntities(tx: UpgradeTx) {
   const now = new Date().toISOString()

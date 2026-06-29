@@ -208,7 +208,7 @@ export function TransactionsPage() {
               <span style={{ fontSize: '0.75rem', color: textSecondary, flexShrink: 0, width: 52 }}>{date}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.875rem', color: textPrimary }}>{meta}</div>
-                {e.description && (
+                {Boolean(e.description) && (
                   <div style={{ fontSize: '0.75rem', color: textSecondary, marginTop: 2 }}>{e.description as string}</div>
                 )}
               </div>

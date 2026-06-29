@@ -61,7 +61,7 @@ export function IncomePage() {
               <span style={{ fontSize: '0.75rem', color: textSecondary, flexShrink: 0, width: 52 }}>{date}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.875rem', color: textPrimary }}>{item.reason as string}</div>
-                {item.description && (
+                {Boolean(item.description) && (
                   <div style={{ fontSize: '0.75rem', color: textSecondary, marginTop: 2 }}>{item.description as string}</div>
                 )}
               </div>
