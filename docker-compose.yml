@@ -10,7 +10,7 @@ services:
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
     volumes:
-      - sqlite-data:/data
+      - ${SQLITE_DATA_DIR:-./data}:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
@@ -37,7 +37,3 @@ services:
     depends_on:
       - app
     restart: unless-stopped
-
-volumes:
-  sqlite-data:
-    driver: local

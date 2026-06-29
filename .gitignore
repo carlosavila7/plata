@@ -23,6 +23,9 @@ build/
 *.sqlite
 *.sqlite-journal
 
+# Local SQLite bind-mount data dir (default SQLITE_DATA_DIR)
+/data/
+
 # Logs
 logs/
 *.log

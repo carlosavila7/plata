@@ -12,7 +12,7 @@ services:
     volumes:
       - ./api/src:/app/src
       - ./api/prisma:/app/prisma
-      - sqlite-data:/data
+      - ${SQLITE_DATA_DIR:-./data}:/data
     ports:
       - "3000:3000"
     restart: unless-stopped
@@ -39,7 +39,3 @@ services:
     depends_on:
       - app
     restart: unless-stopped
-
-volumes:
-  sqlite-data:
-    driver: local
