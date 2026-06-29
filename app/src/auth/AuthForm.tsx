@@ -43,7 +43,7 @@ export function AuthForm({ mode }: Props) {
       const detail = (err as { status?: number; body?: { detail?: string; retryAfter?: number }; message?: string })
       setError(detail.body?.detail ?? detail.message ?? 'Something went wrong.')
       if (detail.status === 429) {
-        const secs = detail.body?.retryAfter ?? Number(detail.body?.detail?.match(/(\d+)s/)?.[1]) || 0
+        const secs = detail.body?.retryAfter ?? (Number(detail.body?.detail?.match(/(\d+)s/)?.[1]) || 0)
         if (secs > 0) setCooldown(secs)
       }
     } finally {

@@ -84,6 +84,12 @@ function orNull(v) {
   return s === '' ? null : s
 }
 
+/** Trim and capitalize the first letter; empty → null. */
+function capitalizeFirst(v) {
+  const s = orNull(v)
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : null
+}
+
 function cents(v) {
   return Math.round((Number(v) || 0) * 100)
 }
@@ -103,7 +109,8 @@ const CANONICAL_ACCOUNTS = [
   { name: 'Banco do Brasil', type: 'checking', institution: 'Banco do Brasil' },
   { name: 'Bradesco',        type: 'checking', institution: 'Bradesco' },
   { name: 'Banco Inter',     type: 'checking', institution: 'Banco Inter' },
-  { name: 'Voucher',         type: 'voucher',  institution: 'Alelo' },
+  { name: 'Meal Voucher',    type: 'voucher',  institution: 'Alelo' },
+  { name: 'Food Voucher',    type: 'voucher',  institution: 'Alelo' },
 ]
 
 async function ensureAccounts() {
@@ -183,12 +190,18 @@ async function importExpenses(accountsByName, statementsBySlug) {
     const costCents = cents(fm.cost)
     if (costCents <= 0) { skipped.push({ name, reason: 'missing/zero cost' }); continue }
 
-    const account = accountsByName[String(fm.origin ?? '').trim()]
-    if (!account) { skipped.push({ name, reason: `unresolved origin "${fm.origin}"` }); continue }
-
     const category    = String(fm.category ?? 'other').trim()
     const subCategory = String(fm['sub-category'] ?? 'other').trim() || 'other'
     const paymentType = normalizePaymentType(fm['payment-type'])
+
+    // Origin → account. A "Voucher" origin is split into Meal/Food Voucher by payment type.
+    const origin = String(fm.origin ?? '').trim()
+    const account = origin.toLowerCase() === 'voucher'
+      ? accountsByName[paymentType === 'food_voucher' ? 'Food Voucher'
+                     : paymentType === 'meal_voucher' ? 'Meal Voucher'
+                     : '']
+      : accountsByName[origin]
+    if (!account) { skipped.push({ name, reason: `unresolved origin "${fm.origin}"` }); continue }
 
     let creditCardStatementId = null
     if (paymentType === 'credit') {
@@ -219,7 +232,7 @@ async function importExpenses(accountsByName, statementsBySlug) {
       accountId:   account.id,
       paymentType,
       creditCardStatementId,
-      boughtAt:    orNull(fm['bought-at']),
+      boughtAt:    capitalizeFirst(fm['bought-at']),
       city:        orNull(fm.city),
       description: orNull(fm.description),
       groupingTag: orNull(fm['grouping-tag']),
