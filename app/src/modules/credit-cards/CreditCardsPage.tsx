@@ -24,7 +24,13 @@ export function CreditCardsPage() {
     <div style={{ paddingBottom: 72 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
         <Link to="/" style={{ color: textSecondary, textDecoration: 'none', fontSize: 20, lineHeight: 1, marginRight: 12 }}>‹</Link>
-        <h2 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', color: textSecondary }}>Credit Cards</h2>
+        <h2 style={{ margin: 0, flex: 1, fontSize: '0.875rem', fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', color: textSecondary }}>Credit Cards</h2>
+        <button
+          onClick={() => navigate('/cards/statements/unlinked')}
+          style={{ background: 'transparent', border: 'none', color: textSecondary, fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', padding: 0 }}
+        >
+          Unlinked ›
+        </button>
       </div>
 
       {loading && <SkeletonRows count={4} />}

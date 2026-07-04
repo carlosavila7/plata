@@ -13,6 +13,8 @@ import { CardFormPage } from './modules/credit-cards/CardFormPage'
 import { CardDetailPage } from './modules/credit-cards/CardDetailPage'
 import { StatementFormPage } from './modules/credit-cards/StatementFormPage'
 import { StatementExpensesPage } from './modules/credit-cards/StatementExpensesPage'
+import { UnlinkedStatementsPage } from './modules/credit-cards/UnlinkedStatementsPage'
+import { LinkStatementPage } from './modules/credit-cards/LinkStatementPage'
 import { InvestmentsPage } from './modules/investments/InvestmentsPage'
 import { InvestmentFormPage } from './modules/investments/InvestmentFormPage'
 import { PositionDetailPage } from './modules/investments/PositionDetailPage'
@@ -49,6 +51,8 @@ function App() {
           <Route path="cards/new" element={<CardFormPage />} />
           <Route path="cards/:id" element={<CardDetailPage />} />
           <Route path="cards/:id/edit" element={<CardFormPage />} />
+          <Route path="cards/statements/unlinked" element={<UnlinkedStatementsPage />} />
+          <Route path="cards/statements/unlinked/:sid/link" element={<LinkStatementPage />} />
           <Route path="cards/:id/statements/new" element={<StatementFormPage />} />
           <Route path="cards/:id/statements/:sid/edit" element={<StatementFormPage />} />
           <Route path="cards/:id/statements/:sid/expenses" element={<StatementExpensesPage />} />
