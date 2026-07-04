@@ -30,6 +30,7 @@ export function AuthForm({ mode }: Props) {
 
   const isLogin = mode === 'login'
   const disabled = busy || cooldown > 0
+  const registrationDisabled = import.meta.env.VITE_DISABLE_REGISTRATION === 'true'
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -93,7 +94,7 @@ export function AuthForm({ mode }: Props) {
 
         <div style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: textSecondary }}>
           {isLogin ? (
-            <>No account? <Link to="/register" style={{ color: textPrimary }}>Register</Link></>
+            !registrationDisabled && <>No account? <Link to="/register" style={{ color: textPrimary }}>Register</Link></>
           ) : (
             <>Have an account? <Link to="/login" style={{ color: textPrimary }}>Sign in</Link></>
           )}

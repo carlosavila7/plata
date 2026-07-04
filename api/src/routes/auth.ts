@@ -24,6 +24,15 @@ const routes: FastifyPluginAsync = async (fastify) => {
   }
 
   fastify.post('/auth/register', async (req, reply) => {
+    if (process.env.DISABLE_REGISTRATION === 'true') {
+      return reply.status(403).send({
+        type: 'https://tools.ietf.org/html/rfc7807',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'New account registration is currently disabled.',
+      })
+    }
+
     const { email, password } = Credentials.parse(req.body)
 
     const existing = await db().user.findUnique({ where: { email } })

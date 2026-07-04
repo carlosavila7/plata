@@ -9,6 +9,7 @@ services:
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?set ACCESS_TOKEN_SECRET in the environment}
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-false}
     volumes:
       - ${SQLITE_DATA_DIR:-./data}:/data
     restart: unless-stopped
@@ -24,6 +25,7 @@ services:
       context: ./app
       args:
         VITE_API_URL: /api
+        VITE_DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-false}
     ports:
       - "80:80"
     depends_on:
