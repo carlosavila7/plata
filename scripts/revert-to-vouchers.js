@@ -1,20 +1,17 @@
 #!/usr/bin/env node
 /**
- * One-off: split the consolidated "Voucher" account into "Food Voucher" and
- * "Meal Voucher" via the running API.
+ * One-off: revert the merge-vouchers migration.
  *
- *   - The existing Voucher account is renamed to "Meal Voucher" and KEEPS its
- *     baseline (balance snapshots + income top-ups).
- *   - A new "Food Voucher" account is created.
- *   - Expenses are re-attributed by paymentType:
- *       food_voucher → Food Voucher
- *       meal_voucher → Meal Voucher
+ *   - Renames the current "Voucher" account back to "Meal Voucher"
+ *   - Creates a new "Food Voucher" account
+ *   - Re-attributes expenses:
+ *       paymentType "Food Voucher" → accountId = Food Voucher, paymentType = food_voucher
+ *       paymentType "Meal Voucher" → paymentType = meal_voucher (account already correct)
  *
- * Both accounts use type 'voucher' (the API enum) and are distinguished by name.
  * Idempotent — safe to run more than once.
  *
  * Usage:
- *   node scripts/split-vouchers.js [--api http://localhost:3000]
+ *   node scripts/revert-to-vouchers.js --email <email> --password <pw> [--api http://localhost:3000]
  */
 
 function arg(name, fallback) {
@@ -53,42 +50,50 @@ async function api(method, endpoint, body) {
 }
 
 async function main() {
+  if (!EMAIL || !PASSWORD) {
+    console.error('Usage: node revert-to-vouchers.js --email <email> --password <pw> [--api <url>]')
+    process.exit(1)
+  }
+
   await login(EMAIL, PASSWORD)
   const accounts = await api('GET', '/accounts')
   const byName = Object.fromEntries(accounts.map(a => [a.name, a]))
 
-  // 1. Meal Voucher = the existing voucher account, renamed (keeps its baseline).
+  // 1. Rename "Voucher" → "Meal Voucher".
   let meal = byName['Meal Voucher']
   if (!meal) {
-    const legacy = byName['Voucher'] ?? accounts.find(a => a.type === 'voucher')
-    if (!legacy) throw new Error('No existing Voucher account found to rename.')
+    const legacy = byName['Voucher'] ?? accounts.find(a => a.type === 'voucher' && !a.deletedAt)
+    if (!legacy) throw new Error('No "Voucher" or "Meal Voucher" account found.')
     meal = await api('PUT', `/accounts/${legacy.id}`, { name: 'Meal Voucher' })
     console.log(`Renamed "${legacy.name}" (${legacy.id}) → "Meal Voucher"`)
   } else {
-    console.log(`Meal Voucher already present (${meal.id})`)
+    console.log(`"Meal Voucher" already present (${meal.id})`)
   }
 
-  // 2. Food Voucher = new account.
+  // 2. Ensure "Food Voucher" account exists.
   let food = byName['Food Voucher']
   if (!food) {
     food = await api('POST', '/accounts', { name: 'Food Voucher', type: 'voucher', institution: 'Alelo' })
     console.log(`Created "Food Voucher" (${food.id})`)
   } else {
-    console.log(`Food Voucher already present (${food.id})`)
+    console.log(`"Food Voucher" already present (${food.id})`)
   }
 
-  // 3. Re-attribute expenses by paymentType.
+  // 3. Re-attribute expenses.
   const expenses = await api('GET', '/expenses')
-  const target = { food_voucher: food.id, meal_voucher: meal.id }
-  let moved = 0
+  let updated = 0
+
   for (const e of expenses) {
-    const want = target[e.paymentType]
-    if (want && e.accountId !== want) {
-      await api('PUT', `/expenses/${e.id}`, { accountId: want })
-      moved++
+    if (e.paymentType === 'Food Voucher') {
+      await api('PUT', `/expenses/${e.id}`, { accountId: food.id, paymentType: 'food_voucher' })
+      updated++
+    } else if (e.paymentType === 'Meal Voucher') {
+      await api('PUT', `/expenses/${e.id}`, { paymentType: 'meal_voucher' })
+      updated++
     }
   }
-  console.log(`Re-attributed ${moved} voucher expense(s).`)
+
+  console.log(`Updated ${updated} expense(s).`)
   console.log('Done.')
 }
 

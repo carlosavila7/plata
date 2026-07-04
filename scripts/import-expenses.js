@@ -21,20 +21,40 @@ import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
 const argv = yargs(hideBin(process.argv))
-  .option('source', { type: 'string', demandOption: true, describe: 'Path to finance/ directory' })
-  .option('api',    { type: 'string', demandOption: true, describe: 'API base URL' })
-  .option('force',  { type: 'boolean', default: false, describe: 'Import even if expenses already exist' })
+  .option('source',   { type: 'string', demandOption: true,  describe: 'Path to finance/ directory' })
+  .option('api',      { type: 'string', demandOption: true,  describe: 'API base URL' })
+  .option('email',    { type: 'string', demandOption: true,  describe: 'User email' })
+  .option('password', { type: 'string', demandOption: true,  describe: 'User password' })
+  .option('force',    { type: 'boolean', default: false,     describe: 'Import even if expenses already exist' })
   .parseSync()
 
 const SOURCE = argv.source
 const API    = argv.api.replace(/\/$/, '')
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+let token = null
+
+async function login(email, password) {
+  const res = await fetch(`${API}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) throw new Error(`Login failed: ${res.status} ${await res.text()}`)
+  const { accessToken } = await res.json()
+  token = accessToken
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function api(method, endpoint, body) {
   const res = await fetch(`${API}${endpoint}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   })
   if (!res.ok) {
@@ -262,6 +282,8 @@ async function importExpenses(accountsByName, statementsBySlug) {
 async function main() {
   console.log(`Source: ${SOURCE}`)
   console.log(`API:    ${API}`)
+
+  await login(argv.email, argv.password)
 
   const accountsByName = await ensureAccounts()
   const statementsBySlug = await importStatements()

@@ -11,6 +11,13 @@ import { bg, border, textPrimary, textSecondary, btnPrimary, btnSecondary, inact
 
 const VOUCHER_ACCOUNT_TYPES = new Set(['voucher', 'food_voucher', 'meal_voucher'])
 
+// These two accounts have a single implied payment type — no choice to make, so
+// the Payment field is hidden and the value is forced to match the account.
+const FORCED_PAYMENT_BY_ACCOUNT_NAME: Record<string, string> = {
+  'Food Voucher': 'food_voucher',
+  'Meal Voucher': 'meal_voucher',
+}
+
 interface Props { onClose: () => void; initialData?: Record<string, unknown> }
 
 export function ExpenseForm({ onClose, initialData }: Props) {
@@ -142,6 +149,7 @@ export function ExpenseForm({ onClose, initialData }: Props) {
 
   const selectedAccount = accounts.find((a) => a.id === form.accountId)
   const isVoucherAccount = VOUCHER_ACCOUNT_TYPES.has(selectedAccount?.type as string)
+  const forcedPaymentType = FORCED_PAYMENT_BY_ACCOUNT_NAME[selectedAccount?.name as string]
   const voucherPaymentNames = paymentTypesList.filter(p => p.isVoucher as boolean).map(p => p.name as string)
   const availablePayments = isVoucherAccount
     ? paymentTypesList.filter(p => p.isVoucher as boolean)
@@ -149,6 +157,11 @@ export function ExpenseForm({ onClose, initialData }: Props) {
 
   function setAccountId(id: string) {
     const acct = accounts.find((a) => a.id === id)
+    const forced = FORCED_PAYMENT_BY_ACCOUNT_NAME[acct?.name as string]
+    if (forced) {
+      setForm((f) => ({ ...f, accountId: id, paymentType: forced, creditCardStatementId: '' }))
+      return
+    }
     const isVoucher = VOUCHER_ACCOUNT_TYPES.has(acct?.type as string)
     let payment = form.paymentType
     if (isVoucher && !voucherPaymentNames.includes(payment))
@@ -260,19 +273,21 @@ export function ExpenseForm({ onClose, initialData }: Props) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 24 }}>
-        <span style={chipGroupLabel}>Payment</span>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {availablePayments.map((p) => {
-            const selected = form.paymentType === (p.name as string)
-            return (
-              <button key={p.id as string} type="button" onClick={() => setPaymentType(p.name as string)} style={chipStyle(selected)}>
-                {p.name as string}
-              </button>
-            )
-          })}
+      {!forcedPaymentType && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 24 }}>
+          <span style={chipGroupLabel}>Payment</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {availablePayments.map((p) => {
+              const selected = form.paymentType === (p.name as string)
+              return (
+                <button key={p.id as string} type="button" onClick={() => setPaymentType(p.name as string)} style={chipStyle(selected)}>
+                  {p.name as string}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {form.paymentType === 'credit' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 24 }}>

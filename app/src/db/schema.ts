@@ -120,8 +120,8 @@ let _db: IDBPDatabase<FinanceDB> | null = null
 
 export async function getDB() {
   if (_db) return _db
-  _db = await openDB<FinanceDB>('gonzalo-plata', 1, {
-    upgrade(db, oldVersion, _newVersion, tx) {
+  _db = await openDB<FinanceDB>('gonzalo-plata', 3, {
+    async upgrade(db, oldVersion, _newVersion, tx) {
       if (oldVersion < 1) {
         db.createObjectStore('accounts',            { keyPath: 'id' })
         const balances = db.createObjectStore('balances', { keyPath: 'id' })
@@ -156,7 +156,25 @@ export async function getDB() {
         db.createObjectStore('persons', { keyPath: 'id' })
 
         // Seed only options (categories, subcategories, payment types) — no accounts.
-        seedOptionEntities(tx)
+        await seedOptionEntities(tx)
+      }
+      if (oldVersion < 2) {
+        // Rename payment types from snake_case to display names (later reverted in v3).
+        const pts2 = (tx as IDBPTransaction<FinanceDB, ('paymentTypes')[], 'versionchange'>).objectStore('paymentTypes')
+        const now2 = new Date().toISOString()
+        for (const [id, name] of [['pt-food-voucher', 'Food Voucher'], ['pt-meal-voucher', 'Meal Voucher']] as [string, string][]) {
+          const existing = await pts2.get(id)
+          if (existing) await pts2.put({ ...existing, name, updatedAt: now2 })
+        }
+      }
+      if (oldVersion < 3) {
+        // Revert payment type names back to snake_case.
+        const pts = (tx as IDBPTransaction<FinanceDB, ('paymentTypes')[], 'versionchange'>).objectStore('paymentTypes')
+        const now = new Date().toISOString()
+        for (const [id, name] of [['pt-food-voucher', 'food_voucher'], ['pt-meal-voucher', 'meal_voucher']] as [string, string][]) {
+          const existing = await pts.get(id)
+          if (existing) await pts.put({ ...existing, name, updatedAt: now })
+        }
       }
     },
   })
