@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { getAll, upsert, softDelete } from '../../db/stores'
+import { enqueue } from '../../sync/queue'
 import { surface, border, textPrimary, textSecondary, btnPrimary, btnSecondary, inputStyle, labelStyle } from '../../theme'
 
 type Row = Record<string, unknown>
@@ -77,6 +78,7 @@ export function SettingsPage() {
     const now = new Date().toISOString()
     const rec = { id: uuidv4(), ...newAccount, name: newAccount.name.trim(), institution: newAccount.institution.trim(), notes: null, createdAt: now, updatedAt: now, deletedAt: null }
     await upsert('accounts', rec)
+    await enqueue('accounts', rec.id, 'create', rec)
     setAccounts(prev => [...prev, rec])
     setNewAccount({ name: '', type: 'checking', institution: '' })
   }
@@ -362,12 +364,15 @@ function AccountEditModal({ account, onClose, onSave, onDelete }: {
 
   async function save() {
     const now = new Date().toISOString()
-    await upsert('accounts', { ...account, name: name.trim(), institution: institution.trim(), type, updatedAt: now })
+    const rec = { ...account, name: name.trim(), institution: institution.trim(), type, updatedAt: now }
+    await upsert('accounts', rec)
+    await enqueue('accounts', account.id as string, 'update', rec)
     onSave()
   }
 
   async function handleDelete() {
     await softDelete('accounts', account.id as string)
+    await enqueue('accounts', account.id as string, 'delete', { id: account.id })
     onDelete()
   }
 
