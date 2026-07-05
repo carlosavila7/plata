@@ -5,6 +5,8 @@ import { refreshAccessToken, setUnauthenticatedHandler } from './authedFetch'
 import { saveSession, loadSession, clearSession, type SessionUser } from './session'
 import { clearAllData } from '../db/stores'
 import { runSync } from '../sync/register'
+import { flushQueue } from '../sync/flush'
+import { countQueued } from '../sync/queue'
 
 type Status = 'loading' | 'authenticated' | 'offline-authed' | 'unauthenticated'
 
@@ -32,7 +34,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // overwrites the marker loadSession reads).
   async function wipeIfUserChanged(nextUser: SessionUser) {
     const prev = await loadSession()
-    if (prev && prev.id !== nextUser.id) await clearAllData()
+    if (prev && prev.id !== nextUser.id) {
+      // The previous user's credentials are already gone by this point, so any of
+      // their still-queued mutations can't be flushed — accepted residual risk, only
+      // hit on a genuine different-user handoff on the same device. Log it so the
+      // loss is visible instead of silent.
+      const staleCount = await countQueued()
+      if (staleCount > 0) {
+        console.warn(`wipeIfUserChanged: discarding ${staleCount} unsynced item(s) from previous user`)
+      }
+      await clearAllData()
+    }
   }
 
   async function applySession(data: AuthResponse) {
@@ -55,6 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
+    // Drain the queue first, while the access token is still valid — flushing after
+    // the session is torn down would have nothing to authenticate with.
+    await flushQueue()
+
+    // Anything still queued means the flush couldn't fully complete (offline, or a
+    // rejected item) — don't silently discard it.
+    const remaining = await countQueued()
+    if (remaining > 0) {
+      const proceed = window.confirm(
+        `${remaining} change${remaining === 1 ? '' : 's'} haven't finished syncing. ` +
+        `Logging out now will discard ${remaining === 1 ? 'it' : 'them'}. Log out anyway?`
+      )
+      if (!proceed) return
+    }
+
     try {
       await apiClient.post('/auth/logout', {})
     } catch {
@@ -62,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     clearAccessToken()
     await clearSession()
-    // Drop all cached financial data so it can't outlive the session on a shared device.
-    // Tradeoff: any unsynced offline edits still in the queue are discarded.
+    // Drop all cached financial data so it can't outlive the session on a shared
+    // device. The queue is now empty (or its remaining contents were approved above).
     await clearAllData()
     setUser(null)
     setStatus('unauthenticated')
@@ -124,6 +151,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', onOnline)
     }
   }, [])
+
+  // Safety net: iOS's online/offline events are unreliable (Wi-Fi/cellular handoff,
+  // standalone-PWA mode), so periodically reconcile in addition to the event-driven
+  // triggers in registerSync(). Visibility-gated so a backgrounded/throttled timer
+  // doesn't matter, and cheap since flushQueue/fetchDelta are no-ops when idle.
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') void runSync()
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [status])
 
   return (
     <AuthContext.Provider value={{ status, user, login, register, logout }}>

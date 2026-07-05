@@ -18,4 +18,15 @@ export function registerSync() {
   // Initial sync on load is triggered by AuthContext once a session is established;
   // here we only react to regaining connectivity.
   window.addEventListener('online', () => { void runSync() })
+
+  // iOS/WebKit can suspend a hidden tab or standalone PWA almost immediately, with no
+  // Background Sync API to catch up later, so push out whatever's queued the moment
+  // we go hidden. On resume, do a full reconcile — a page that was only suspended
+  // (not reloaded) skips AuthContext's bootstrap effect entirely, so this is the only
+  // chance to pull in changes made elsewhere while it was backgrounded.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void flushQueue()
+    else void runSync()
+  })
+  window.addEventListener('pagehide', () => { void flushQueue() })
 }

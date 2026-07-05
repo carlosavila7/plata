@@ -3,7 +3,17 @@ import { upsert } from '../db/stores'
 import { setSyncStatus } from './status'
 import { authedFetch, ensureAuthed } from '../auth/authedFetch'
 
-export async function flushQueue() {
+// De-dupes concurrent flushes (debounced enqueue, visibility hide/resume, the
+// periodic safety net, `online`, login/bootstrap, logout) into a single /sync POST.
+let inFlight: Promise<void> | null = null
+
+export function flushQueue(): Promise<void> {
+  if (inFlight) return inFlight
+  inFlight = flushQueueImpl().finally(() => { inFlight = null })
+  return inFlight
+}
+
+async function flushQueueImpl() {
   const db = await getDB()
   const items = await db.getAllFromIndex('syncQueue', 'byQueuedAt')
   if (items.length === 0) { setSyncStatus('synced'); return }

@@ -178,6 +178,12 @@ export async function getDB() {
       }
     },
   })
+  // Reduce eviction risk under storage pressure. Mainly helps the installed
+  // standalone PWA and Android/desktop — WebKit decides based on its own engagement
+  // heuristics and doesn't expose the same guarantees for a plain Safari tab.
+  if (navigator.storage?.persist) {
+    void navigator.storage.persist().catch(() => {})
+  }
   return _db
 }
 
