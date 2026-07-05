@@ -5,7 +5,7 @@ import { getDelta } from '../sync/delta.js'
 
 const QueueItem = z.object({
   id:        z.string(),
-  entity:    z.enum(['accounts', 'balances', 'expenses', 'income', 'creditCardStatements', 'investmentPositions', 'investmentEvents']),
+  entity:    z.enum(['accounts', 'balances', 'expenses', 'income', 'creditCards', 'creditCardStatements', 'investmentPositions', 'investmentEvents']),
   entityId:  z.string(),
   operation: z.enum(['create', 'update', 'delete']),
   payload:   z.record(z.unknown()),
