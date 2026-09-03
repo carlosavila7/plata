@@ -67,6 +67,7 @@ model Account {
   incomeTo            Income[]  @relation("IncomeTo")
   incomeFrom          Income[]  @relation("IncomeFrom")
   investmentPositions InvestmentPosition[]
+  settledCreditCards  CreditCard[]
 
   @@index([userId])
 }
@@ -149,20 +150,22 @@ model Income {
 // CreditCard
 // ---------------------------------------------------------------------------
 model CreditCard {
-  id         String    @id
-  userId     String
-  nickname   String
-  bank       String
-  network    String
-  closingDay Int       // day of month (1–31)
-  dueDay     Int       // day of month (1–31)
-  limitCents Int?
-  createdAt  DateTime
-  updatedAt  DateTime
-  deletedAt  DateTime?
+  id                  String    @id
+  userId              String
+  nickname            String
+  bank                String    // issuing institution — display text, distinct from settlementAccountId
+  network             String
+  closingDay          Int       // day of month (1–31)
+  dueDay              Int       // day of month (1–31)
+  limitCents          Int?
+  settlementAccountId String?   // FK → Account that absorbs this card's statements when they close
+  createdAt           DateTime
+  updatedAt           DateTime
+  deletedAt           DateTime?
 
-  user       User      @relation(fields: [userId], references: [id])
-  statements CreditCardStatement[]
+  user              User      @relation(fields: [userId], references: [id])
+  settlementAccount Account?  @relation(fields: [settlementAccountId], references: [id])
+  statements        CreditCardStatement[]
 
   @@index([userId])
 }
