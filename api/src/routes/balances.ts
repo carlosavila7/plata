@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { newId, now, ownedWhere, assertOwned } from '../lib/helpers.js'
+import { deriveAccountBalances } from '../lib/deriveBalances.js'
 
 const BalanceBody = z.object({
   accountId:   z.string().uuid(),
@@ -20,6 +21,35 @@ const routes: FastifyPluginAsync = async (fastify) => {
         ...(accountId ? { accountId } : {}),
         ...(dateFrom || dateTo ? { date: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
       },
+    })
+  })
+
+  // Derived balance per Account — see CONTEXT.md. The math lives in
+  // lib/deriveBalances.ts as a pure function; this just gathers the record
+  // sets it needs.
+  fastify.get('/balances/derived', async (req) => {
+    const userId = req.user!.id
+    const [accounts, balances, income, expenses, creditCards, statements, investmentPositions, investmentEvents] =
+      await Promise.all([
+        db().account.findMany({ where: ownedWhere(userId) }),
+        db().balance.findMany({ where: ownedWhere(userId) }),
+        db().income.findMany({ where: ownedWhere(userId) }),
+        db().expense.findMany({ where: ownedWhere(userId) }),
+        db().creditCard.findMany({ where: ownedWhere(userId) }),
+        db().creditCardStatement.findMany({ where: ownedWhere(userId) }),
+        db().investmentPosition.findMany({ where: ownedWhere(userId) }),
+        db().investmentEvent.findMany({ where: ownedWhere(userId) }),
+      ])
+
+    return deriveAccountBalances({
+      accounts,
+      balances,
+      income,
+      expenses,
+      creditCards,
+      statements,
+      investmentPositions,
+      investmentEvents,
     })
   })
 
