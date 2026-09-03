@@ -44,6 +44,11 @@ function badRequest(detail: string) {
  */
 export type LookupModel = 'expenseCategory' | 'paymentType'
 
+const LOOKUP_LABELS: Record<LookupModel, string> = {
+  expenseCategory: 'category',
+  paymentType: 'payment type',
+}
+
 export async function assertLookupValue(
   prisma: PrismaClient,
   model: LookupModel,
@@ -51,7 +56,7 @@ export async function assertLookupValue(
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const found = await (prisma as any)[model].findFirst({ where: { name, deletedAt: null } })
-  if (!found) throw badRequest(`"${name}" is not a recognised ${model === 'expenseCategory' ? 'category' : 'payment type'}.`)
+  if (!found) throw badRequest(`"${name}" is not a recognised ${LOOKUP_LABELS[model]}.`)
 }
 
 /**
