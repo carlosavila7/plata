@@ -11,6 +11,7 @@
 
 interface AccountLike {
   id: string
+  deletedAt: Date | null
 }
 
 interface SnapshotLike {
@@ -96,7 +97,7 @@ export interface DerivedAccountBalance {
  * so the guarantee holds however this function is invoked.
  */
 export function deriveAccountBalances(input: DeriveBalancesInput): DerivedAccountBalance[] {
-  const accounts = input.accounts
+  const accounts = input.accounts.filter(a => !a.deletedAt)
   const balances = input.balances.filter(b => !b.deletedAt)
   const income = input.income.filter(i => !i.deletedAt)
   const expenses = input.expenses.filter(e => !e.deletedAt)
