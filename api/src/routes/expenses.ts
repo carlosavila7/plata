@@ -1,6 +1,29 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { newId, now, ownedWhere, assertOwned, assertLookupValue } from '../lib/helpers.js'
+import { newId, now, ownedWhere, assertOwned, assertLookupValue, occurredAtRangeWhere } from '../lib/helpers.js'
+import { encodeCursor, decodeCursor } from '../lib/cursor.js'
+
+const DEFAULT_LIST_LIMIT = 50
+const MAX_LIST_LIMIT = 200
+
+const ExpenseListQuery = z.object({
+  category:    z.string().optional(),
+  subCategory: z.string().optional(),
+  paymentType: z.string().optional(),
+  accountId:   z.string().optional(),
+  groupingTag: z.string().optional(),
+  dateFrom:    z.string().optional(),
+  dateTo:      z.string().optional(),
+  since:       z.string().optional(),
+  cursor:      z.string().optional(),
+  limit:       z.coerce.number().int().positive().max(MAX_LIST_LIMIT).optional(),
+})
+
+const ExpenseSummaryQuery = z.object({
+  dateFrom: z.string().optional(),
+  dateTo:   z.string().optional(),
+  category: z.string().optional(),
+})
 
 const FuelDetails = z.object({
   fullTank:           z.boolean(),
@@ -31,17 +54,71 @@ const routes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/expenses', async (req) => {
     const userId = req.user!.id
-    const { category, dateFrom, dateTo, accountId, groupingTag, since } = req.query as Record<string, string | undefined>
-    return db().expense.findMany({
+    const { category, subCategory, paymentType, dateFrom, dateTo, accountId, groupingTag, since, cursor, limit } =
+      ExpenseListQuery.parse(req.query)
+    const decodedCursor = cursor ? decodeCursor(cursor) : undefined
+    const take = limit ?? DEFAULT_LIST_LIMIT
+
+    const records = await db().expense.findMany({
       where: {
-        ...ownedWhere(userId, since),
-        ...(category ? { category } : {}),
-        ...(accountId ? { accountId } : {}),
-        ...(groupingTag ? { groupingTag } : {}),
-        ...(dateFrom || dateTo ? { occurredAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } } : {}),
+        AND: [
+          ownedWhere(userId, since),
+          category    ? { category }    : {},
+          subCategory ? { subCategory } : {},
+          paymentType ? { paymentType } : {},
+          accountId   ? { accountId }   : {},
+          groupingTag ? { groupingTag } : {},
+          occurredAtRangeWhere(dateFrom, dateTo),
+          decodedCursor
+            ? {
+                OR: [
+                  { occurredAt: { lt: decodedCursor.occurredAt } },
+                  { occurredAt: decodedCursor.occurredAt, id: { lt: decodedCursor.id } },
+                ],
+              }
+            : {},
+        ],
       },
-      orderBy: { occurredAt: 'desc' },
+      orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
     })
+
+    const hasMore = records.length > take
+    const items = hasMore ? records.slice(0, take) : records
+    const last = items[items.length - 1]
+    return {
+      items,
+      ...(hasMore && last ? { nextCursor: encodeCursor(last.occurredAt, last.id) } : {}),
+    }
+  })
+
+  // Category totals for a date range; subcategory breakdown when `category` is
+  // supplied. Replaces the PWA screen that used to pull every Expense and group
+  // them client-side.
+  fastify.get('/expenses/summary', async (req) => {
+    const userId = req.user!.id
+    const { dateFrom, dateTo, category } = ExpenseSummaryQuery.parse(req.query)
+    const where = {
+      ...ownedWhere(userId),
+      ...(category ? { category } : {}),
+      ...occurredAtRangeWhere(dateFrom, dateTo),
+    }
+
+    if (category) {
+      const rows = await db().expense.groupBy({ by: ['subCategory'], where, _sum: { costCents: true } })
+      const subcategories = rows.map((r) => ({ subCategory: r.subCategory, totalCents: r._sum.costCents ?? 0 }))
+      return {
+        dateFrom, dateTo, category, subcategories,
+        totalCents: subcategories.reduce((sum, r) => sum + r.totalCents, 0),
+      }
+    }
+
+    const rows = await db().expense.groupBy({ by: ['category'], where, _sum: { costCents: true } })
+    const categories = rows.map((r) => ({ category: r.category, totalCents: r._sum.costCents ?? 0 }))
+    return {
+      dateFrom, dateTo, categories,
+      totalCents: categories.reduce((sum, r) => sum + r.totalCents, 0),
+    }
   })
 
   fastify.post('/expenses', async (req, reply) => {

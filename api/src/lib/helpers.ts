@@ -20,6 +20,17 @@ export function ownedWhere(userId: string, since?: string) {
   return { ...baseWhere(since), userId }
 }
 
+/** Build a Prisma range filter for Expense.occurredAt from optional ?dateFrom=/?dateTo= bounds. */
+export function occurredAtRangeWhere(dateFrom?: string, dateTo?: string) {
+  if (!dateFrom && !dateTo) return {}
+  return {
+    occurredAt: {
+      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+      ...(dateTo ? { lte: new Date(dateTo) } : {}),
+    },
+  }
+}
+
 /** Throw an RFC 7807-shaped 404 (formatted by the global error handler). */
 function notFound(detail: string) {
   const err = new Error(detail) as Error & { statusCode?: number }
@@ -29,7 +40,7 @@ function notFound(detail: string) {
 }
 
 /** Throw an RFC 7807-shaped 400 (formatted by the global error handler). */
-function badRequest(detail: string) {
+export function badRequest(detail: string) {
   const err = new Error(detail) as Error & { statusCode?: number }
   err.name = 'Bad Request'
   err.statusCode = 400

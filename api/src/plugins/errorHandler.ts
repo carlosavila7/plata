@@ -8,7 +8,7 @@ export default fp(async (fastify) => {
         type: 'https://tools.ietf.org/html/rfc7807',
         title: 'Validation Error',
         status: 400,
-        detail: 'Request body failed validation.',
+        detail: 'Request failed validation.',
         errors: error.flatten(),
       })
     }
