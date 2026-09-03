@@ -16,6 +16,7 @@ import expenseCategoryRoutes from './routes/expenseCategories.js'
 import expenseSubcategoryRoutes from './routes/expenseSubcategories.js'
 import paymentTypeRoutes from './routes/paymentTypes.js'
 import cityRoutes from './routes/cities.js'
+import lookupRoutes from './routes/lookups.js'
 
 const fastify = Fastify({ logger: true })
 
@@ -54,6 +55,7 @@ await fastify.register(expenseCategoryRoutes)
 await fastify.register(expenseSubcategoryRoutes)
 await fastify.register(paymentTypeRoutes)
 await fastify.register(cityRoutes)
+await fastify.register(lookupRoutes)
 
 const port = Number(process.env.PORT ?? 3000)
 await fastify.listen({ port, host: '0.0.0.0' })

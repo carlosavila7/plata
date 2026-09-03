@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { getAll, upsert, softDelete } from '../../db/stores'
 import { enqueue } from '../../sync/queue'
+import { pushLookups, type PushLookupsResult } from '../../sync/pushLookups'
 import { surface, border, textPrimary, textSecondary, btnPrimary, btnSecondary, inputStyle, labelStyle } from '../../theme'
 
 type Row = Record<string, unknown>
@@ -28,7 +29,24 @@ export function SettingsPage() {
   const [newCity, setNewCity] = useState('')
   const [newAccount, setNewAccount] = useState({ name: '', type: 'checking', institution: '' })
 
+  const [pushState, setPushState] = useState<'idle' | 'pushing' | 'error'>('idle')
+  const [pushResult, setPushResult] = useState<PushLookupsResult | null>(null)
+  const [pushErrorMessage, setPushErrorMessage] = useState('')
+
   useEffect(() => { loadAll() }, [])
+
+  async function handlePushLookups() {
+    setPushState('pushing')
+    setPushResult(null)
+    try {
+      const result = await pushLookups()
+      setPushResult(result)
+      setPushState('idle')
+    } catch (err) {
+      setPushErrorMessage(err instanceof Error ? err.message : 'Push failed')
+      setPushState('error')
+    }
+  }
 
   async function loadAll() {
     const [cats, subs, pts, cs, accs] = await Promise.all([
@@ -87,6 +105,34 @@ export function SettingsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+
+      {/* Push lookups to server */}
+      <section>
+        <h2 style={sectionTitle}>Server sync</h2>
+        <p style={{ color: textSecondary, fontSize: 13, margin: '0 0 12px' }}>
+          Categories, subcategories, payment types and cities live only on this device.
+          Push them to the server so other clients see them too. Safe to run more than once.
+        </p>
+        <button
+          type="button"
+          style={btnPrimary}
+          onClick={handlePushLookups}
+          disabled={pushState === 'pushing'}
+        >
+          {pushState === 'pushing' ? 'Pushing…' : 'Push lookups to server'}
+        </button>
+        {pushState === 'error' && (
+          <p style={{ color: textPrimary, fontSize: 13, marginTop: 8 }}>Push failed: {pushErrorMessage}</p>
+        )}
+        {pushResult && (
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <PushSummaryRow label="Categories" summary={pushResult.expenseCategories} />
+            <PushSummaryRow label="Subcategories" summary={pushResult.expenseSubcategories} />
+            <PushSummaryRow label="Payment types" summary={pushResult.paymentTypes} />
+            <PushSummaryRow label="Cities" summary={pushResult.cities} />
+          </div>
+        )}
+      </section>
 
       {/* Categories */}
       <section>
@@ -210,6 +256,17 @@ export function SettingsPage() {
         />
       )}
 
+    </div>
+  )
+}
+
+function PushSummaryRow({ label, summary }: { label: string; summary: { created: number; updated: number; unchanged: number } }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+      <span style={{ color: textPrimary }}>{label}</span>
+      <span style={{ color: textSecondary }}>
+        {summary.created} created · {summary.updated} updated · {summary.unchanged} unchanged
+      </span>
     </div>
   )
 }

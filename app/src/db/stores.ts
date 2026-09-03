@@ -9,6 +9,15 @@ export async function getAll(store: string) {
   return (all as Array<Record<string, unknown>>).filter((r) => !r.deletedAt)
 }
 
+/** Unfiltered read — includes soft-deleted rows, unlike {@link getAll}. */
+export async function getAllRaw(store: string) {
+  const db = await getDB()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tx = db.transaction(store as any, 'readonly')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (await (tx.store as any).getAll()) as Array<Record<string, unknown>>
+}
+
 export async function getById(store: string, id: string) {
   const db = await getDB()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
