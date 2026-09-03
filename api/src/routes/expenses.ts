@@ -1,9 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { newId, now, ownedWhere, assertOwned } from '../lib/helpers.js'
-
-const CATEGORIES = ['food', 'transport', 'vehicle', 'streaming', 'housing', 'personal', 'health', 'subscriptions', 'entertainment', 'education', 'sidequests', 'other'] as const
-const PAYMENT_TYPES = ['debit', 'credit', 'pix', 'food_voucher', 'meal_voucher'] as const
+import { newId, now, ownedWhere, assertOwned, assertLookupValue } from '../lib/helpers.js'
 
 const FuelDetails = z.object({
   fullTank:           z.boolean(),
@@ -13,11 +10,11 @@ const FuelDetails = z.object({
 
 const ExpenseBody = z.object({
   occurredAt:           z.string().datetime({ offset: true }),
-  category:             z.enum(CATEGORIES),
+  category:             z.string().min(1),
   subCategory:          z.string().min(1),
   costCents:            z.number().int().positive(),
   accountId:            z.string().uuid(),
-  paymentType:          z.enum(PAYMENT_TYPES),
+  paymentType:          z.string().min(1),
   creditCardStatementId: z.string().uuid().optional().nullable(),
   boughtAt:             z.string().optional().nullable(),
   city:                 z.string().optional().nullable(),
@@ -52,6 +49,8 @@ const routes: FastifyPluginAsync = async (fastify) => {
     const body = ExpenseBody.parse(req.body)
     await assertOwned(db(), 'account', body.accountId, userId)
     if (body.creditCardStatementId) await assertOwned(db(), 'creditCardStatement', body.creditCardStatementId, userId)
+    await assertLookupValue(db(), 'expenseCategory', body.category)
+    await assertLookupValue(db(), 'paymentType', body.paymentType)
     const t = now()
     const record = await db().expense.create({
       data: {
@@ -74,6 +73,8 @@ const routes: FastifyPluginAsync = async (fastify) => {
     await assertOwned(db(), 'expense', id, userId)
     if (accountId) await assertOwned(db(), 'account', accountId, userId)
     if (creditCardStatementId) await assertOwned(db(), 'creditCardStatement', creditCardStatementId, userId)
+    if (rest.category) await assertLookupValue(db(), 'expenseCategory', rest.category)
+    if (rest.paymentType) await assertLookupValue(db(), 'paymentType', rest.paymentType)
     const record = await db().expense.update({
       where: { id },
       data: {

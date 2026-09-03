@@ -28,6 +28,32 @@ function notFound(detail: string) {
   return err
 }
 
+/** Throw an RFC 7807-shaped 400 (formatted by the global error handler). */
+function badRequest(detail: string) {
+  const err = new Error(detail) as Error & { statusCode?: number }
+  err.name = 'Bad Request'
+  err.statusCode = 400
+  return err
+}
+
+/**
+ * Assert that `name` exists in a lookup table (ExpenseCategory, PaymentType, ...)
+ * and is not soft-deleted. Lookup tables are the source of truth for these values
+ * instead of hardcoded enums, so a category or payment type created in the PWA's
+ * Settings validates here too.
+ */
+export type LookupModel = 'expenseCategory' | 'paymentType'
+
+export async function assertLookupValue(
+  prisma: PrismaClient,
+  model: LookupModel,
+  name: string,
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const found = await (prisma as any)[model].findFirst({ where: { name, deletedAt: null } })
+  if (!found) throw badRequest(`"${name}" is not a recognised ${model === 'expenseCategory' ? 'category' : 'payment type'}.`)
+}
+
 /**
  * Assert that a referenced record exists AND belongs to `userId`. Used to validate
  * foreign keys on create/update (e.g. an expense's accountId must be the caller's),
