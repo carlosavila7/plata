@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { Stack, useRouter } from 'expo-router'
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 import { useAccounts } from '../src/api/lookups'
 import { useExpenseList, useResetExpenseList, type Expense, type ExpenseFilters } from '../src/api/expenses'
@@ -9,6 +10,7 @@ import { humanizeSlug } from '../src/lib/text'
 import { border, textPrimary, textSecondary } from '../src/theme'
 
 export default function ExpensesScreen() {
+  const router = useRouter()
   const [filters, setFilters] = useState<ExpenseFilters>({})
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -62,6 +64,16 @@ export default function ExpensesScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable onPress={() => router.push('/expense-new')} hitSlop={12}>
+              <Text style={styles.addButton}>+</Text>
+            </Pressable>
+          ),
+        }}
+      />
+
       <Pressable style={styles.filterBar} onPress={() => setFilterSheetOpen(true)}>
         <Text style={styles.filterBarText}>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</Text>
         <Text style={styles.filterBarArrow}>›</Text>
@@ -133,6 +145,12 @@ const styles = StyleSheet.create({
   filterBarArrow: {
     fontSize: 14,
     color: textSecondary,
+  },
+  addButton: {
+    fontSize: 24,
+    fontWeight: '400',
+    color: textPrimary,
+    paddingHorizontal: 8,
   },
   skeletonWrap: {
     paddingHorizontal: 16,

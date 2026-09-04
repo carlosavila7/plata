@@ -1,5 +1,11 @@
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
+
+export interface FuelDetails {
+  fullTank: boolean
+  odometerKm: number | null
+  pricePerLiterCents: number
+}
 
 export interface Expense {
   id: string
@@ -17,7 +23,10 @@ export interface Expense {
   isRecurrent: boolean
   person: string | null
   isDelivery: boolean | null
+  fuelDetails?: FuelDetails | null
 }
+
+export type ExpenseInput = Omit<Expense, 'id' | 'fuelDetails'> & { fuelDetails: FuelDetails | null }
 
 export interface ExpenseFilters {
   category?: string
@@ -74,4 +83,19 @@ export function useResetExpenseList(filters: ExpenseFilters) {
     const page = await apiClient.get<ExpenseListPage>(`/expenses${toQueryString(filters)}`)
     queryClient.setQueryData(expenseListQueryKey(filters), { pages: [page], pageParams: [undefined] })
   }
+}
+
+// No local write queue (ADR-0001) — a failed create is surfaced to the caller
+// via the mutation's own `error`/`isPending`, with no retry beyond the user
+// pressing Save again. Mutations don't retry automatically, so this never
+// double-submits on its own.
+export function useCreateExpense() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: ExpenseInput) => apiClient.post<Expense>('/expenses', body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      void queryClient.invalidateQueries({ queryKey: ['derivedBalances'] })
+    },
+  })
 }

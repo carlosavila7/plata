@@ -8,6 +8,20 @@ export interface Account {
   institution: string
 }
 
+export interface CreditCard {
+  id: string
+  nickname: string
+  bank: string
+  network: string
+}
+
+export interface CreditCardStatement {
+  id: string
+  creditCardId: string | null
+  closeDate: string
+  status: string
+}
+
 export interface ExpenseCategory {
   id: string
   name: string
@@ -53,5 +67,22 @@ export function usePaymentTypes() {
   return useQuery({
     queryKey: ['paymentTypes'],
     queryFn: () => apiClient.get<PaymentType[]>('/payment-types'),
+  })
+}
+
+export function useCreditCards() {
+  return useQuery({
+    queryKey: ['creditCards'],
+    queryFn: () => apiClient.get<CreditCard[]>('/credit-cards'),
+  })
+}
+
+// Unscoped — the expense form filters to the open statements for whichever
+// account/card it needs, and the account holds few enough cards/statements
+// that a per-account endpoint would be premature.
+export function useCreditCardStatements() {
+  return useQuery({
+    queryKey: ['creditCardStatements'],
+    queryFn: () => apiClient.get<CreditCardStatement[]>('/credit-card-statements'),
   })
 }
