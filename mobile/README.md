@@ -29,6 +29,64 @@ switch to "Custom (LAN override)", enter the machine's LAN address
 (`http://<lan-ip>:3000`), and save. The override is stored on-device and takes
 effect immediately — no rebuild needed.
 
+## Production build (Tailscale)
+
+The installed APK has its API base URL baked in at build time — see
+`docs/adr/0003-api-reachable-over-tailscale.md` for why it targets a Tailscale
+MagicDNS name instead of the public quick tunnel the PWA uses.
+
+### One-time: expose the API host over Tailscale HTTPS
+
+On the host running the production `docker-compose.yml` stack (nginx listens
+on host port 80 and proxies `/api/` to the API container):
+
+1. Join the tailnet if it hasn't already: `sudo tailscale up`.
+2. In the [Tailscale admin console](https://login.tailscale.com/admin/dns),
+   confirm **HTTPS Certificates** is enabled for the tailnet — `tailscale
+   serve --https` can't issue a cert without it.
+3. Front nginx with a real cert on 443:
+   ```
+   sudo tailscale serve --bg --https=443 / http://127.0.0.1:80
+   ```
+4. Confirm the mapping: `tailscale serve status`. The stable address is
+   `https://<hostname>.<tailnet-suffix>.ts.net` (find both with `tailscale
+   status` / `tailscale dns status` on any tailnet member).
+5. If that address isn't `https://private-cloud.tailc62b08.ts.net`, update
+   `EXPO_PUBLIC_API_BASE_URL` in `eas.json`'s `production` profile to match —
+   it must end in `/api` (nginx strips that prefix before proxying to the API).
+
+This only exposes the API to devices on the tailnet; the public quick tunnel
+and the PWA it serves are untouched.
+
+### One-time: configure the EAS project
+
+```
+npx eas login              # authenticate with your Expo account
+npx eas build:configure    # links this app to an EAS project, writes app.json's extra.eas.projectId
+```
+
+### Build and install
+
+```
+npm run build:android      # eas build --platform android --profile production
+```
+
+EAS builds in the cloud and prints a download link (and QR code) for the
+resulting `.apk` when it finishes. On the phone (must be on the tailnet):
+
+1. Open the link, or run `eas build:run --platform android` / `adb install
+   <path-to-apk>` if you downloaded it to a machine with the phone attached.
+2. Allow "install from unknown sources" for the installer if prompted —
+   this is a one-time sideload permission, unrelated to network security.
+3. Open the app and log in. If it can't reach the API, check the **Debug**
+   screen — it shows the base URL the build resolved.
+4. To confirm it isn't just working over LAN, try it on mobile data (tailnet
+   only, home Wi-Fi off).
+
+Rebuilding after this point (new features, bumped version) is just `npm run
+build:android` again — no reconfiguration needed unless the Tailscale
+hostname changes.
+
 ## Structure
 
 - `app/` — file-based routes (expo-router)
