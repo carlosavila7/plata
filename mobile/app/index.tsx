@@ -1,5 +1,6 @@
 import { Link } from 'expo-router'
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import { useAuth } from '../src/auth/AuthContext'
 import { border, textPrimary, textSecondary } from '../src/theme'
 
 const ENTITIES = [
@@ -11,6 +12,8 @@ const ENTITIES = [
 ] as const
 
 export default function HomeScreen() {
+  const { logout } = useAuth()
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {ENTITIES.map(({ label, href }) => (
@@ -23,10 +26,14 @@ export default function HomeScreen() {
       ))}
 
       <Link href="/debug" asChild>
-        <Pressable style={styles.debugRow}>
-          <Text style={styles.debugLabel}>Debug</Text>
+        <Pressable style={styles.footerRow}>
+          <Text style={styles.footerLabel}>Debug</Text>
         </Pressable>
       </Link>
+
+      <Pressable style={styles.footerRow} onPress={() => void logout()}>
+        <Text style={styles.footerLabel}>Log out</Text>
+      </Pressable>
     </ScrollView>
   )
 }
@@ -52,11 +59,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: textSecondary,
   },
-  debugRow: {
+  footerRow: {
     paddingVertical: 16,
     marginTop: 24,
   },
-  debugLabel: {
+  footerLabel: {
     fontSize: 12,
     fontWeight: '400',
     color: textSecondary,
