@@ -159,7 +159,14 @@ const routes: FastifyPluginAsync = async (fastify) => {
         ...(occurredAt            ? { occurredAt: new Date(occurredAt) }                                  : {}),
         ...(fuelDetails !== undefined ? { fuelDetails: fuelDetails ? JSON.stringify(fuelDetails) : null } : {}),
         ...(accountId             ? { account:             { connect: { id: accountId } } }              : {}),
-        ...(creditCardStatementId ? { creditCardStatement: { connect: { id: creditCardStatementId } } }  : {}),
+        // Unlike accountId, this one is nullable — an edit that moves an expense off
+        // `credit` sends creditCardStatementId: null to drop the link, which has to
+        // disconnect the relation rather than be skipped like an absent field.
+        ...(creditCardStatementId === undefined
+          ? {}
+          : creditCardStatementId === null
+            ? { creditCardStatement: { disconnect: true } }
+            : { creditCardStatement: { connect: { id: creditCardStatementId } } }),
         updatedAt: now(),
       },
     })

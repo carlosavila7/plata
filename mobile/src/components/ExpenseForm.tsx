@@ -6,7 +6,7 @@ import { MoneyInput } from './MoneyInput'
 import { SelectPicker, type SelectOption } from './SelectPicker'
 import { Toggle } from './Toggle'
 import { useAccounts, useCreditCards, useCreditCardStatements, useExpenseCategories, useExpenseSubcategories, usePaymentTypes } from '../api/lookups'
-import { useCreateExpense, type ExpenseInput } from '../api/expenses'
+import { useCreateExpense, useDeleteExpense, useUpdateExpense, type Expense, type ExpenseInput } from '../api/expenses'
 import { formatSnapshotDate } from '../lib/money'
 import { humanizeSlug } from '../lib/text'
 import { styles as theme, textPrimary, textSecondary } from '../theme'
@@ -14,7 +14,9 @@ import { styles as theme, textPrimary, textSecondary } from '../theme'
 const VOUCHER_ACCOUNT_TYPES = new Set(['food_voucher', 'meal_voucher'])
 
 interface Props {
+  expense?: Expense
   onSaved: () => void
+  onDeleted?: () => void
 }
 
 function withDatePart(base: Date, picked: Date): Date {
@@ -35,38 +37,46 @@ interface ApiFailure {
   body?: { detail?: string; errors?: { fieldErrors?: Record<string, string[]> } }
 }
 
-export function ExpenseForm({ onSaved }: Props) {
+export function ExpenseForm({ expense, onSaved, onDeleted }: Props) {
   const { data: accounts } = useAccounts()
   const { data: categories } = useExpenseCategories()
   const { data: paymentTypes } = usePaymentTypes()
   const { data: creditCards } = useCreditCards()
   const { data: statements } = useCreditCardStatements()
   const createExpense = useCreateExpense()
+  const updateExpense = useUpdateExpense(expense?.id ?? '')
+  const deleteExpense = useDeleteExpense()
+  const saveMutation = expense ? updateExpense : createExpense
 
-  const [occurredAt, setOccurredAt] = useState(new Date())
-  const [category, setCategory] = useState('')
-  const [subCategory, setSubCategory] = useState('')
-  const [costCents, setCostCents] = useState(0)
-  const [accountId, setAccountId] = useState('')
-  const [paymentType, setPaymentType] = useState('')
-  const [creditCardStatementId, setCreditCardStatementId] = useState('')
-  const [boughtAt, setBoughtAt] = useState('')
-  const [city, setCity] = useState('')
-  const [description, setDescription] = useState('')
-  const [groupingTag, setGroupingTag] = useState('')
-  const [isRecurrent, setIsRecurrent] = useState(false)
-  const [person, setPerson] = useState('')
-  const [isDelivery, setIsDelivery] = useState(false)
-  const [fuelFullTank, setFuelFullTank] = useState(false)
-  const [fuelPriceCents, setFuelPriceCents] = useState(0)
-  const [odometerCents, setOdometerCents] = useState(0)
+  const [occurredAt, setOccurredAt] = useState(() => (expense ? new Date(expense.occurredAt) : new Date()))
+  const [category, setCategory] = useState(expense?.category ?? '')
+  const [subCategory, setSubCategory] = useState(expense?.subCategory ?? '')
+  const [costCents, setCostCents] = useState(expense?.costCents ?? 0)
+  const [accountId, setAccountId] = useState(expense?.accountId ?? '')
+  const [paymentType, setPaymentType] = useState(expense?.paymentType ?? '')
+  const [creditCardStatementId, setCreditCardStatementId] = useState(expense?.creditCardStatementId ?? '')
+  const [boughtAt, setBoughtAt] = useState(expense?.boughtAt ?? '')
+  const [city, setCity] = useState(expense?.city ?? '')
+  const [description, setDescription] = useState(expense?.description ?? '')
+  const [groupingTag, setGroupingTag] = useState(expense?.groupingTag ?? '')
+  const [isRecurrent, setIsRecurrent] = useState(expense?.isRecurrent ?? false)
+  const [person, setPerson] = useState(expense?.person ?? '')
+  const [isDelivery, setIsDelivery] = useState(expense?.isDelivery ?? false)
+  const [fuelFullTank, setFuelFullTank] = useState(expense?.fuelDetails?.fullTank ?? false)
+  const [fuelPriceCents, setFuelPriceCents] = useState(expense?.fuelDetails?.pricePerLiterCents ?? 0)
+  const [odometerCents, setOdometerCents] = useState(
+    expense?.fuelDetails?.odometerKm != null ? Math.round(expense.fuelDetails.odometerKm * 100) : 0
+  )
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const selectedCategory = categories?.find(c => c.name === category)
   const { data: subcategories } = useExpenseSubcategories(selectedCategory?.id)
 
   // Seeds the form's initial selections once, the first time every lookup it
   // needs has arrived — after that, field-level handlers own the choices.
-  const initializedRef = useRef(false)
+  // Editing starts every field from the existing record instead, so this
+  // never runs there.
+  const initializedRef = useRef(!!expense)
   useEffect(() => {
     if (initializedRef.current || !accounts || !categories || !paymentTypes) return
     initializedRef.current = true
@@ -121,6 +131,12 @@ export function ExpenseForm({ onSaved }: Props) {
   const openStatements = (statements ?? [])
     .filter(s => s.status === 'open' && selectedAccount && cardById.get(s.creditCardId ?? '')?.bank === selectedAccount.name)
     .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
+  // An edited expense can be linked to a statement that has since closed —
+  // that statement won't be in openStatements, but the picker still needs to
+  // display and keep it unless the user actively picks a different one.
+  const assignedStatement = creditCardStatementId ? (statements ?? []).find(s => s.id === creditCardStatementId) : undefined
+  const statementChoices =
+    assignedStatement && !openStatements.some(s => s.id === assignedStatement.id) ? [assignedStatement, ...openStatements] : openStatements
 
   function handlePaymentTypeChange(pt: string) {
     setPaymentType(pt)
@@ -132,12 +148,15 @@ export function ExpenseForm({ onSaved }: Props) {
     !!category && !!subCategory && !!accountId && !!paymentType &&
     !(paymentType === 'credit' && !creditCardStatementId)
 
-  const failure = createExpense.error as ApiFailure | null
+  const failure = saveMutation.error as ApiFailure | null
   const generalError = failure ? (failure.body?.detail ?? failure.message ?? 'Something went wrong.') : null
   const fieldError = (key: string) => failure?.body?.errors?.fieldErrors?.[key]?.[0]
 
+  const deleteFailure = deleteExpense.error as ApiFailure | null
+  const deleteError = deleteFailure ? (deleteFailure.body?.detail ?? deleteFailure.message ?? 'Something went wrong.') : null
+
   async function handleSave() {
-    if (!canSave || createExpense.isPending) return
+    if (!canSave || saveMutation.isPending) return
     const body: ExpenseInput = {
       occurredAt: occurredAt.toISOString(),
       category,
@@ -158,11 +177,22 @@ export function ExpenseForm({ onSaved }: Props) {
         : null,
     }
     try {
-      await createExpense.mutateAsync(body)
+      await saveMutation.mutateAsync(body)
       onSaved()
     } catch {
-      // Surfaced below via createExpense.error — form state is left untouched
+      // Surfaced below via saveMutation.error — form state is left untouched
       // so the user can retry without retyping anything (see ADR-0001).
+    }
+  }
+
+  async function handleDelete() {
+    if (!expense || deleteExpense.isPending) return
+    try {
+      await deleteExpense.mutateAsync(expense.id)
+      onDeleted?.()
+    } catch {
+      // Surfaced below via deleteExpense.error — confirmDelete stays true so
+      // the Confirm/Cancel pair is still there to retry (see ADR-0001).
     }
   }
 
@@ -170,7 +200,7 @@ export function ExpenseForm({ onSaved }: Props) {
   const subCategoryOptions: SelectOption[] = (subcategories ?? []).map(s => ({ value: s.name, label: humanizeSlug(s.name) }))
   const accountOptions: SelectOption[] = accounts.map(a => ({ value: a.id, label: a.name }))
   const paymentTypeOptions: SelectOption[] = availablePaymentTypes.map(p => ({ value: p.name, label: humanizeSlug(p.name) }))
-  const statementOptions: SelectOption[] = openStatements.map(s => {
+  const statementOptions: SelectOption[] = statementChoices.map(s => {
     const card = cardById.get(s.creditCardId ?? '')
     return { value: s.id, label: `${formatSnapshotDate(s.closeDate)} · ${card?.network ?? ''} ${card?.nickname ?? 'Card'}` }
   })
@@ -263,11 +293,31 @@ export function ExpenseForm({ onSaved }: Props) {
 
         <Pressable
           style={[theme.btnPrimary, styles.saveBtn, !canSave && styles.saveBtnDisabled]}
-          disabled={!canSave || createExpense.isPending}
+          disabled={!canSave || saveMutation.isPending}
           onPress={() => void handleSave()}
         >
-          <Text style={theme.btnPrimaryText}>{createExpense.isPending ? 'Saving…' : createExpense.isError ? 'Retry' : 'Save'}</Text>
+          <Text style={theme.btnPrimaryText}>{saveMutation.isPending ? 'Saving…' : saveMutation.isError ? 'Retry' : 'Save'}</Text>
         </Pressable>
+
+        {expense && (
+          <View style={styles.deleteSection}>
+            {confirmDelete ? (
+              <View style={styles.deleteRow}>
+                <Pressable style={[theme.btnSecondary, styles.deleteBtn]} disabled={deleteExpense.isPending} onPress={() => void handleDelete()}>
+                  <Text style={theme.btnSecondaryText}>{deleteExpense.isPending ? 'Deleting…' : 'Confirm delete'}</Text>
+                </Pressable>
+                <Pressable style={[theme.btnPrimary, styles.deleteBtn]} disabled={deleteExpense.isPending} onPress={() => setConfirmDelete(false)}>
+                  <Text style={theme.btnPrimaryText}>Cancel</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable style={theme.btnSecondary} onPress={() => setConfirmDelete(true)}>
+                <Text style={theme.btnSecondaryText}>Delete</Text>
+              </Pressable>
+            )}
+            {deleteError && <Text style={[styles.error, styles.generalError]}>{deleteError}</Text>}
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -310,5 +360,15 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: {
     opacity: 0.5,
+  },
+  deleteSection: {
+    marginTop: 12,
+  },
+  deleteRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  deleteBtn: {
+    flex: 1,
   },
 })

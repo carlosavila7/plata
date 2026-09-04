@@ -48,7 +48,7 @@ export default function ExpensesScreen() {
 
   function renderItem({ item }: { item: Expense }) {
     return (
-      <View style={styles.row}>
+      <Pressable style={styles.row} onPress={() => router.push({ pathname: '/expense-edit', params: { id: item.id } })}>
         <View style={styles.rowInfo}>
           <Text style={styles.rowCategory} numberOfLines={1}>
             {humanizeSlug(item.category)} · {humanizeSlug(item.subCategory)}
@@ -58,7 +58,7 @@ export default function ExpensesScreen() {
           </Text>
         </View>
         <Text style={styles.rowAmount}>{formatMoneyCents(item.costCents)}</Text>
-      </View>
+      </Pressable>
     )
   }
 

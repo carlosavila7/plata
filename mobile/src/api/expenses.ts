@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
 
 export interface FuelDetails {
@@ -37,9 +37,22 @@ export interface ExpenseFilters {
   dateTo?: string
 }
 
-interface ExpenseListPage {
+export interface ExpenseListPage {
   items: Expense[]
   nextCursor?: string
+}
+
+// The list is the only place the app ever fetches a full Expense record —
+// there's no GET /expenses/:id — so editing a row means finding it in
+// whichever cached list page(s) it's part of, across every filter combo
+// currently cached.
+export function findCachedExpense(queryClient: QueryClient, id: string): Expense | undefined {
+  const queries = queryClient.getQueriesData<InfiniteData<ExpenseListPage>>({ queryKey: ['expenses'] })
+  for (const [, data] of queries) {
+    const match = data?.pages.flatMap(page => page.items).find(item => item.id === id)
+    if (match) return match
+  }
+  return undefined
 }
 
 function toQueryString(filters: ExpenseFilters, cursor?: string): string {
@@ -93,6 +106,31 @@ export function useCreateExpense() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: ExpenseInput) => apiClient.post<Expense>('/expenses', body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      void queryClient.invalidateQueries({ queryKey: ['derivedBalances'] })
+    },
+  })
+}
+
+// Same no-retry, surface-the-error contract as useCreateExpense (see #11/#12) —
+// a failed edit leaves the cached list untouched since invalidation only runs
+// on success.
+export function useUpdateExpense(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: ExpenseInput) => apiClient.put<Expense>(`/expenses/${id}`, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      void queryClient.invalidateQueries({ queryKey: ['derivedBalances'] })
+    },
+  })
+}
+
+export function useDeleteExpense() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete<null>(`/expenses/${id}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['expenses'] })
       void queryClient.invalidateQueries({ queryKey: ['derivedBalances'] })

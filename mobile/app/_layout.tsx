@@ -47,6 +47,7 @@ function AuthGate() {
       <Stack.Screen name="index" options={{ title: '(Plata)' }} />
       <Stack.Screen name="expenses" options={{ title: 'Expenses' }} />
       <Stack.Screen name="expense-new" options={{ title: 'New Expense' }} />
+      <Stack.Screen name="expense-edit" options={{ title: 'Edit Expense' }} />
       <Stack.Screen name="income" options={{ title: 'Income' }} />
       <Stack.Screen name="snapshots" options={{ title: 'Snapshots' }} />
       <Stack.Screen name="cards" options={{ title: 'Credit Cards' }} />
