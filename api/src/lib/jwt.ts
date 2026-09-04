@@ -3,7 +3,7 @@ import { randomBytes, createHash } from 'node:crypto'
 
 const ACCESS_SECRET = process.env.ACCESS_TOKEN_SECRET ?? 'dev-access-secret-change-me'
 const ACCESS_TTL = process.env.ACCESS_TOKEN_TTL ?? '15m'
-const REFRESH_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 7)
+const REFRESH_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30)
 
 export interface AuthUser {
   id: string

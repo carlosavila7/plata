@@ -14,6 +14,15 @@ declare module 'fastify' {
 }
 
 export const REFRESH_COOKIE_NAME = 'refreshToken'
+
+// Native clients can't hold an httpOnly cookie, so they opt in to receiving
+// the refresh token in the response/request body via this header. Absent it,
+// behaviour is unchanged: cookie only. See ADR-0002.
+export const REFRESH_TRANSPORT_HEADER = 'x-refresh-transport'
+export function wantsBodyRefreshTransport(req: FastifyRequest): boolean {
+  return req.headers[REFRESH_TRANSPORT_HEADER] === 'body'
+}
+
 const isProd = process.env.NODE_ENV === 'production'
 
 /** Throw an RFC 7807-shaped 401 (formatted by the global error handler). */
