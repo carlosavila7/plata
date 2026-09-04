@@ -109,6 +109,7 @@ export function useCreateExpense() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['expenses'] })
       void queryClient.invalidateQueries({ queryKey: ['derivedBalances'] })
+      void queryClient.invalidateQueries({ queryKey: ['expenseSummary'] })
     },
   })
 }
@@ -123,6 +124,7 @@ export function useUpdateExpense(id: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['expenses'] })
       void queryClient.invalidateQueries({ queryKey: ['derivedBalances'] })
+      void queryClient.invalidateQueries({ queryKey: ['expenseSummary'] })
     },
   })
 }
@@ -134,6 +136,7 @@ export function useDeleteExpense() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['expenses'] })
       void queryClient.invalidateQueries({ queryKey: ['derivedBalances'] })
+      void queryClient.invalidateQueries({ queryKey: ['expenseSummary'] })
     },
   })
 }

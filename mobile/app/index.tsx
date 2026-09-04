@@ -10,6 +10,7 @@ import { border, textPrimary, textSecondary } from '../src/theme'
 
 const ENTITIES = [
   { label: 'Expenses', href: '/expenses' },
+  { label: 'Summary', href: '/summary' },
   { label: 'Income', href: '/income' },
   { label: 'Snapshots', href: '/snapshots' },
   { label: 'Credit Cards', href: '/cards' },
