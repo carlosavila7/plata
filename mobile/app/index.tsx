@@ -5,7 +5,7 @@ import { border, textPrimary, textSecondary } from '../src/theme'
 const ENTITIES = [
   { label: 'Expenses', href: '/expenses' },
   { label: 'Income', href: '/income' },
-  { label: 'Balances', href: '/balances' },
+  { label: 'Snapshots', href: '/snapshots' },
   { label: 'Credit Cards', href: '/cards' },
   { label: 'Investments', href: '/investments' },
 ] as const

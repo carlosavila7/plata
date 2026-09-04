@@ -53,10 +53,12 @@ export const styles = StyleSheet.create({
     borderBottomColor: border,
     padding: 16,
   },
-  screenLabel: {
-    fontSize: 12,
-    color: textSecondary,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+  rowInput: {
+    color: textPrimary,
+    fontSize: 15,
+    textAlign: 'right',
+    flexGrow: 1,
+    minWidth: 0,
+    padding: 0,
   },
 })

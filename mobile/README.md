@@ -33,9 +33,8 @@ effect immediately — no rebuild needed.
 
 - `app/` — file-based routes (expo-router)
 - `src/theme.ts` — colour tokens and shared style objects ported from `app/src/theme.ts`
-- `src/components/` — `FieldRow`, `SelectPicker`, `MoneyInput`, `SkeletonRows`
+- `src/components/` — `FieldRow`, `SelectPicker`, `MoneyInput`, `SkeletonRows`, `DateTimeField`
 - `src/config/apiBaseUrl.ts` — build-time default + runtime debug override
-- `src/api/client.ts` — thin fetch wrapper against the API base URL
 
 Date and time entry uses the platform pickers (`@react-native-community/datetimepicker`)
 instead of the PWA's custom `DatePicker`/`TimePicker`.

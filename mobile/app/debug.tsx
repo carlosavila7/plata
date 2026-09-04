@@ -13,13 +13,11 @@ import {
 import { border, styles as theme, textPrimary, textSecondary } from '../src/theme'
 
 type Mode = 'default' | 'custom'
-type PingState = { status: 'idle' | 'checking' | 'ok' | 'error'; detail?: string }
 
 export default function DebugScreen() {
   const [mode, setMode] = useState<Mode>('default')
   const [customUrl, setCustomUrl] = useState('')
   const [saved, setSaved] = useState(false)
-  const [ping, setPing] = useState<PingState>({ status: 'idle' })
   const [previewMoneyCents, setPreviewMoneyCents] = useState(0)
   const [previewDate, setPreviewDate] = useState(new Date())
 
@@ -37,18 +35,7 @@ export default function DebugScreen() {
   async function save() {
     await setApiBaseUrlOverride(mode === 'custom' ? customUrl : null)
     setSaved(true)
-    setPing({ status: 'idle' })
     setTimeout(() => setSaved(false), 1500)
-  }
-
-  async function testConnection() {
-    setPing({ status: 'checking' })
-    try {
-      const res = await fetch(`${effectiveUrl}/health`)
-      setPing(res.ok ? { status: 'ok' } : { status: 'error', detail: `HTTP ${res.status}` })
-    } catch (err) {
-      setPing({ status: 'error', detail: err instanceof Error ? err.message : 'Network error' })
-    }
   }
 
   return (
@@ -75,26 +62,16 @@ export default function DebugScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
-            style={inputStyles.input}
+            style={theme.rowInput}
           />
         </FieldRow>
       )}
 
       <Text style={styles.effectiveUrl}>Effective: {effectiveUrl}</Text>
 
-      <View style={styles.buttonRow}>
-        <Pressable style={[theme.btnSecondary, styles.button]} onPress={testConnection}>
-          <Text style={theme.btnSecondaryText}>
-            {ping.status === 'checking' ? 'Testing…' : 'Test connection'}
-          </Text>
-        </Pressable>
-        <Pressable style={[theme.btnPrimary, styles.button]} onPress={save}>
-          <Text style={theme.btnPrimaryText}>{saved ? 'Saved' : 'Save'}</Text>
-        </Pressable>
-      </View>
-
-      {ping.status === 'ok' && <Text style={styles.pingOk}>Reachable</Text>}
-      {ping.status === 'error' && <Text style={styles.pingError}>Unreachable — {ping.detail}</Text>}
+      <Pressable style={[theme.btnPrimary, styles.saveButton]} onPress={save}>
+        <Text style={theme.btnPrimaryText}>{saved ? 'Saved' : 'Save'}</Text>
+      </Pressable>
 
       <View style={styles.divider} />
 
@@ -118,38 +95,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 8,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 8,
+  saveButton: {
     marginTop: 16,
-  },
-  button: {
-    flex: 1,
-  },
-  pingOk: {
-    color: textPrimary,
-    fontSize: 13,
-    marginTop: 8,
-  },
-  pingError: {
-    color: textSecondary,
-    fontSize: 13,
-    marginTop: 8,
   },
   divider: {
     height: 1,
     backgroundColor: border,
     marginVertical: 32,
-  },
-})
-
-const inputStyles = StyleSheet.create({
-  input: {
-    color: textPrimary,
-    fontSize: 15,
-    textAlign: 'right',
-    flexGrow: 1,
-    minWidth: 0,
-    padding: 0,
   },
 })

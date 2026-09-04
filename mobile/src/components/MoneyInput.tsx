@@ -1,6 +1,6 @@
-import { StyleSheet, TextInput } from 'react-native'
+import { TextInput } from 'react-native'
 import { FieldRow } from './FieldRow'
-import { textPrimary } from '../theme'
+import { styles } from '../theme'
 
 interface Props {
   valueCents: number
@@ -24,19 +24,8 @@ export function MoneyInput({ valueCents, onChange, label }: Props) {
         value={format(valueCents)}
         onChangeText={handleChange}
         keyboardType="number-pad"
-        style={inputStyles.input}
+        style={styles.rowInput}
       />
     </FieldRow>
   )
 }
-
-const inputStyles = StyleSheet.create({
-  input: {
-    color: textPrimary,
-    fontSize: 15,
-    textAlign: 'right',
-    flexGrow: 1,
-    minWidth: 0,
-    padding: 0,
-  },
-})

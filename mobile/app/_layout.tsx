@@ -20,7 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ title: '(Plata)' }} />
         <Stack.Screen name="expenses" options={{ title: 'Expenses' }} />
         <Stack.Screen name="income" options={{ title: 'Income' }} />
-        <Stack.Screen name="balances" options={{ title: 'Balances' }} />
+        <Stack.Screen name="snapshots" options={{ title: 'Snapshots' }} />
         <Stack.Screen name="cards" options={{ title: 'Credit Cards' }} />
         <Stack.Screen name="investments" options={{ title: 'Investments' }} />
         <Stack.Screen name="debug" options={{ title: 'Debug' }} />
