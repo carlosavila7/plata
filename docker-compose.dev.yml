@@ -32,10 +32,3 @@ services:
       - "5173:5173"
     depends_on:
       - api
-
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate --url http://app:5173
-    depends_on:
-      - app
-    restart: unless-stopped

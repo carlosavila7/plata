@@ -33,7 +33,7 @@ effect immediately — no rebuild needed.
 
 The installed APK has its API base URL baked in at build time — see
 `docs/adr/0003-api-reachable-over-tailscale.md` for why it targets a Tailscale
-MagicDNS name instead of the public quick tunnel the PWA uses.
+MagicDNS name (the same address that now serves the PWA).
 
 ### One-time: expose the API host over Tailscale HTTPS
 
@@ -55,8 +55,8 @@ on host port 80 and proxies `/api/` to the API container):
    `EXPO_PUBLIC_API_BASE_URL` in `eas.json`'s `production` profile to match —
    it must end in `/api` (nginx strips that prefix before proxying to the API).
 
-This only exposes the API to devices on the tailnet; the public quick tunnel
-and the PWA it serves are untouched.
+This exposes the whole stack (the PWA at `/` and the API at `/api`) to
+devices on the tailnet only. There is no public access path.
 
 ### One-time: configure the EAS project
 

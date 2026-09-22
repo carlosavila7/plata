@@ -5,7 +5,7 @@ services:
     environment:
       DATABASE_URL: "file:/data/gonzalo-plata.db"
       NODE_ENV: production
-      PWA_ORIGIN: ${TUNNEL_URL:-http://localhost}
+      PWA_ORIGIN: ${PUBLIC_ORIGIN:-https://private-cloud.tailc62b08.ts.net}
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?set ACCESS_TOKEN_SECRET in the environment}
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
@@ -31,11 +31,4 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    restart: unless-stopped
-
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate --url http://app:80
-    depends_on:
-      - app
     restart: unless-stopped
