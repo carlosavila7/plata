@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { v4 as uuidv4 } from 'uuid'
+import { toApiExpense } from '../lib/expense.js'
 
 type Operation = 'create' | 'update' | 'delete'
 type Entity = 'accounts' | 'balances' | 'expenses' | 'income' | 'creditCards' | 'creditCardStatements' | 'investmentPositions' | 'investmentEvents'
@@ -41,6 +42,11 @@ function toRow(entity: Entity, payload: Record<string, unknown>): Record<string,
   return row
 }
 
+// Inverse of toRow for records sent back to the client.
+function fromRow(entity: Entity, record: Record<string, unknown>) {
+  return entity === 'expenses' ? toApiExpense(record as { fuelDetails?: string | null }) : record
+}
+
 export async function processBatch(prisma: PrismaClient, userId: string, items: QueueItem[]) {
   const results: Array<{ id: string; status: 'ok' | 'conflict' | 'error'; record?: unknown; error?: string }> = []
 
@@ -78,13 +84,13 @@ export async function processBatch(prisma: PrismaClient, userId: string, items: 
         const record = await repo.create({
           data: { ...toRow(item.entity, item.payload), userId, id: item.entityId, createdAt: incomingUpdatedAt, updatedAt: incomingUpdatedAt },
         })
-        results.push({ id: item.id, status: 'ok', record })
+        results.push({ id: item.id, status: 'ok', record: fromRow(item.entity, record) })
         continue
       }
 
       // Conflict resolution: last write wins by updatedAt
       if (new Date(existing.updatedAt) > incomingUpdatedAt) {
-        results.push({ id: item.id, status: 'conflict', record: existing })
+        results.push({ id: item.id, status: 'conflict', record: fromRow(item.entity, existing) })
         continue
       }
 
@@ -92,7 +98,7 @@ export async function processBatch(prisma: PrismaClient, userId: string, items: 
         where: { id: item.entityId },
         data: { ...toRow(item.entity, item.payload), userId, updatedAt: incomingUpdatedAt },
       })
-      results.push({ id: item.id, status: 'ok', record })
+      results.push({ id: item.id, status: 'ok', record: fromRow(item.entity, record) })
     } catch (err) {
       results.push({ id: item.id, status: 'error', error: String(err) })
     }

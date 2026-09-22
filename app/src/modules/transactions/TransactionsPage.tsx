@@ -5,6 +5,7 @@ import { enqueue } from '../../sync/queue'
 import { surface, border, textPrimary, textSecondary, btnPrimary, btnSecondary, bg, inactive } from '../../theme'
 import { SelectPicker } from '../../components/SelectPicker'
 import { DatePicker } from '../../components/DatePicker'
+import { readFuelDetails } from './fuelDetails'
 import { SkeletonRows } from '../../components/Skeleton'
 
 type Row = Record<string, unknown>
@@ -268,7 +269,7 @@ function ExpenseDetailModal({
     ? `${cardNameById[statement.creditCardId as string] ?? 'Card'} · ${new Date(statement.closeDate as string).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
     : null
 
-  const fd = (expense.fuelDetails ?? null) as { fullTank?: boolean; pricePerLiterCents?: number; odometerKm?: number } | null
+  const fd = readFuelDetails(expense.fuelDetails)
   const fmt = (cents: number) => `R$ ${(cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
 
   return (

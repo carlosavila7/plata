@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { newId, now, ownedWhere, assertOwned, assertLookupValue, occurredAtRangeWhere } from '../lib/helpers.js'
 import { encodeCursor, decodeCursor } from '../lib/cursor.js'
+import { toApiExpense } from '../lib/expense.js'
 
 const DEFAULT_LIST_LIMIT = 50
 const MAX_LIST_LIMIT = 200
@@ -87,7 +88,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
     const items = hasMore ? records.slice(0, take) : records
     const last = items[items.length - 1]
     return {
-      items,
+      items: items.map(toApiExpense),
       ...(hasMore && last ? { nextCursor: encodeCursor(last.occurredAt, last.id) } : {}),
     }
   })
@@ -140,7 +141,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
         updatedAt: t,
       },
     })
-    return reply.status(201).send(record)
+    return reply.status(201).send(toApiExpense(record))
   })
 
   fastify.put('/expenses/:id', async (req, reply) => {
@@ -170,7 +171,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
         updatedAt: now(),
       },
     })
-    return reply.send(record)
+    return reply.send(toApiExpense(record))
   })
 
   fastify.delete('/expenses/:id', async (req, reply) => {

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { toApiExpense } from '../lib/expense.js'
 
 export async function getDelta(prisma: PrismaClient, userId: string, since: Date) {
   // Data ownership: delta sync only ever returns the caller's own records.
@@ -21,7 +22,7 @@ export async function getDelta(prisma: PrismaClient, userId: string, since: Date
   return {
     accounts,
     balances,
-    expenses,
+    expenses: expenses.map(toApiExpense),
     income,
     creditCards,
     creditCardStatements,

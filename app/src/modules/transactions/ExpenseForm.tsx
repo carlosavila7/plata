@@ -7,6 +7,7 @@ import { DatePicker } from '../../components/DatePicker'
 import { TimePicker } from '../../components/TimePicker'
 import { SelectPicker } from '../../components/SelectPicker'
 import { FieldRow, rowInput, chipGroupLabel } from '../../components/FieldRow'
+import { readFuelDetails } from './fuelDetails'
 import { bg, border, textPrimary, textSecondary, btnPrimary, btnSecondary, inactive } from '../../theme'
 
 const VOUCHER_ACCOUNT_TYPES = new Set(['voucher', 'food_voucher', 'meal_voucher'])
@@ -34,7 +35,7 @@ export function ExpenseForm({ onClose, initialData }: Props) {
   const initBrt = initialData
     ? new Date(new Date(initialData.occurredAt as string).getTime() - 3 * 60 * 60 * 1000).toISOString()
     : new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
-  const initFd = (initialData?.fuelDetails ?? null) as { fullTank?: boolean; pricePerLiterCents?: number; odometerKm?: number } | null
+  const initFd = readFuelDetails(initialData?.fuelDetails)
   const [form, setForm] = useState({
     date: initBrt.slice(0, 10),
     time: initBrt.slice(11, 16),
