@@ -24,6 +24,23 @@ const TABLE_MAP: Record<Entity, keyof PrismaClient> = {
   investmentEvents:     'investmentEvent',
 }
 
+// Columns stored as JSON text (SQLite has no JSON type). Clients queue them as
+// objects, so serialize before handing the payload to Prisma — the same thing the
+// REST routes do (see POST /expenses).
+const JSON_COLUMNS: Partial<Record<Entity, string[]>> = {
+  expenses: ['fuelDetails'],
+}
+
+function toRow(entity: Entity, payload: Record<string, unknown>): Record<string, unknown> {
+  const columns = JSON_COLUMNS[entity]
+  if (!columns) return payload
+  const row = { ...payload }
+  for (const col of columns) {
+    if (row[col] != null && typeof row[col] !== 'string') row[col] = JSON.stringify(row[col])
+  }
+  return row
+}
+
 export async function processBatch(prisma: PrismaClient, userId: string, items: QueueItem[]) {
   const results: Array<{ id: string; status: 'ok' | 'conflict' | 'error'; record?: unknown; error?: string }> = []
 
@@ -59,7 +76,7 @@ export async function processBatch(prisma: PrismaClient, userId: string, items: 
       if (!existing) {
         // Force userId from the session — never trust a client-supplied owner.
         const record = await repo.create({
-          data: { ...item.payload, userId, id: item.entityId, createdAt: incomingUpdatedAt, updatedAt: incomingUpdatedAt },
+          data: { ...toRow(item.entity, item.payload), userId, id: item.entityId, createdAt: incomingUpdatedAt, updatedAt: incomingUpdatedAt },
         })
         results.push({ id: item.id, status: 'ok', record })
         continue
@@ -73,7 +90,7 @@ export async function processBatch(prisma: PrismaClient, userId: string, items: 
 
       const record = await repo.update({
         where: { id: item.entityId },
-        data: { ...item.payload, userId, updatedAt: incomingUpdatedAt },
+        data: { ...toRow(item.entity, item.payload), userId, updatedAt: incomingUpdatedAt },
       })
       results.push({ id: item.id, status: 'ok', record })
     } catch (err) {

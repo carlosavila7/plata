@@ -44,7 +44,15 @@ async function flushQueueImpl() {
       }
     }
     await tx.done
-    setSyncStatus('synced')
+    // Rejected items stay queued for retry; surface them instead of reporting
+    // "synced" while they silently never land (e.g. the fuelDetails bug).
+    const rejected = results.filter((r) => r.status === 'error')
+    if (rejected.length > 0) {
+      console.warn(`flushQueue: ${rejected.length} item(s) rejected by /sync`, rejected)
+      setSyncStatus('error')
+    } else {
+      setSyncStatus('synced')
+    }
   } catch {
     setSyncStatus('error')
   }
